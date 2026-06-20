@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Ticket, Plus } from 'lucide-react';
 
 interface Voucher {
@@ -71,13 +72,14 @@ export default function VouchersPanel({ vouchers, onUse, onAdd }: VouchersPanelP
                     );
                 })}
 
-                <button
+                <Link
+                    href="/customer/vouchers/add"
                     onClick={onAdd}
-                    className="flex w-full items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-[#bdc9c6] px-0.5 py-2.5 text-[15px] leading-5 font-medium text-[#6e7977]"
+                    className="flex w-full items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-[#bdc9c6] px-0.5 py-2.5 text-[15px] leading-5 font-medium text-[#6e7977] transition-colors hover:border-[#009689] hover:text-[#009689]"
                     aria-label="Add Voucher Code"
                 >
                     <Plus size={14} /> Add Voucher Code
-                </button>
+                </Link>
             </div>
         </div>
     );

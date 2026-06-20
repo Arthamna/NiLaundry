@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Star } from 'lucide-react';
 
 export type OrderStatusKey = 'disetrika' | 'selesai';
 
@@ -22,11 +24,52 @@ interface OrderCardProps {
     steps?: OrderStep[];
 }
 
-export default function OrderCard({ orderId, service, status, eta, steps }: OrderCardProps) {
-    const s = STATUS[status];
+function RatingRow({ cleanId, service }: { cleanId: string; service: string }) {
+    const router = useRouter();
+    const [hover, setHover] = useState(0);
+
+    function goReview(e: React.MouseEvent, value: number) {
+        e.stopPropagation();
+        router.push(`/customer/orders/${encodeURIComponent(cleanId)}/review?stars=${value}&service=${encodeURIComponent(service)}`);
+    }
 
     return (
-        <div className="flex w-full flex-col rounded-[8.75px] border border-[#bdc9c6] p-[11.5px]">
+        <div className="mt-[7px] flex items-center gap-[7px] border-t border-[#f1f5f9] pt-[7px]">
+            <p className="text-[10.5px] leading-[14px] font-medium text-[#6e7977]">Beri rating:</p>
+            <div className="flex items-center gap-[2px]">
+                {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                        key={value}
+                        type="button"
+                        aria-label={`Beri ${value} bintang`}
+                        onClick={(e) => goReview(e, value)}
+                        onMouseEnter={() => setHover(value)}
+                        onMouseLeave={() => setHover(0)}
+                        className="transition-transform hover:scale-110"
+                    >
+                        <Star size={14} className={value <= hover ? 'fill-[#facc15] text-[#facc15]' : 'text-[#cad5e2]'} />
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export default function OrderCard({ orderId, service, status, eta, steps }: OrderCardProps) {
+    const router = useRouter();
+    const s = STATUS[status];
+    const cleanId = orderId.replace(/^#/, '');
+    const detailStatus = status === 'selesai' ? 'completed' : 'active';
+
+    function goDetail() {
+        router.push(`/customer/orders/${encodeURIComponent(cleanId)}?status=${detailStatus}`);
+    }
+
+    return (
+        <div
+            onClick={goDetail}
+            className="flex w-full cursor-pointer flex-col rounded-[8.75px] border border-[#bdc9c6] p-[11.5px] transition-colors hover:border-[#00bba7] hover:bg-[#f6fffe]"
+        >
             <div className="flex items-center justify-between">
                 <div className="flex w-[120.297px] flex-col">
                     <p className="text-[10.5px] leading-[14px] font-normal text-[#6e7977]">{orderId}</p>
@@ -50,6 +93,9 @@ export default function OrderCard({ orderId, service, status, eta, steps }: Orde
             )}
 
             <p className="pt-[7px] text-[11px] leading-[16.5px] font-normal text-[#6e7977]">{eta}</p>
+
+            {/* Completed orders that are not reviewed yet show the rating row. */}
+            {status === 'selesai' && <RatingRow cleanId={cleanId} service={service} />}
         </div>
     );
 }
