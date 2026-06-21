@@ -5,7 +5,7 @@ import VouchersBoard from '@/components/ui/customer/VouchersBoard';
 export default function CustomerVouchersPage() {
     return (
         <div className="flex flex-col gap-[50px]">
-            <DashboardHeader name="Sarah Jenkins" activeVouchers={3} membership="Gold Member" />
+            <DashboardHeader />
             <VouchersBoard />
         </div>
     );

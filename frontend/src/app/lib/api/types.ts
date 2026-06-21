@@ -100,7 +100,20 @@ export interface ItemPesananInput {
 //
 // status_pesanan known values per CUSTOMER_ENDPOINT.md: 'active', 'selesai',
 // plus payment-flow values 'unpaid' / 'paid'. Kept open as string.
-export type StatusPesanan = 'active' | 'selesai' | 'unpaid' | 'paid' | string;
+export type StatusPesanan =
+    | 'pickup'
+    | 'processing'
+    | 'delivery'
+    | 'completed'
+    | 'active'
+    | 'selesai'
+    | 'unpaid'
+    | 'paid'
+    | string;
+
+/** How the laundry is sent in (jenis_ambil) and returned (jenis_antar). */
+export type JenisAmbil = 'pickup' | 'walkin';
+export type JenisAntar = 'delivery' | 'walkin';
 
 export interface Pesanan {
     id: number; // id_pesanan
@@ -112,6 +125,8 @@ export interface Pesanan {
     pelangganId: number; // pelanggan_id_pelanggan
     voucherId: number | null; // voucher_id_voucher (nullable)
     pegawaiId: number; // pegawai_id_pegawai
+    jenisAmbil: JenisAmbil; // jenis_ambil
+    jenisAntar: JenisAntar; // jenis_antar
 }
 
 /** Order detail = pesanan + its line items + optional review (ulasan). */
@@ -120,10 +135,19 @@ export interface PesananDetail extends Pesanan {
     ulasan: Ulasan | null;
 }
 
-/** Payload for POST /pelanggan/{id}/pesanan. Starts voucher=null, payment=pending. */
+/**
+ * Payload for POST /pelanggan/{id}/pesanan. Starts voucher=null, payment=pending.
+ * Mirrors the backend `CreatePesananRequest` (internal/dtos/pesanan.go):
+ * cabangId + metodePembayaran are required; estimasiSelesai is optional (ISO).
+ */
 export interface CreatePesananInput {
-    items: ItemPesananInput[];
+    cabangId: number;
     catatan?: string;
+    estimasiSelesai?: string; // ISO timestamp; backend may default when omitted
+    metodePembayaran: string;
+    jenisAmbil: JenisAmbil; // 'pickup' | 'walkin' — drives the default status
+    jenisAntar: JenisAntar; // 'delivery' | 'walkin'
+    items: ItemPesananInput[];
 }
 
 /** Result of GET /pelanggan/{id}/pesanan/subtotal (Function: HitungSubtotalPesanan). */

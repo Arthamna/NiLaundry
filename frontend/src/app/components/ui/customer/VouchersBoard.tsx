@@ -1,49 +1,102 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import VoucherTabs from '@/components/ui/customer/VoucherTabs';
 import VoucherCard from '@/components/ui/customer/VoucherCard';
+import { voucherApi, getApiErrorMessage, getCurrentPelangganId, type Voucher } from '@/lib/api';
 
-interface Voucher {
+type Tab = 'Active' | 'Used' | 'Expired';
+const TABS = ['Active', 'Used', 'Expired'];
+
+interface CardVM {
+    id: number;
     amount: string;
     code: string;
     description: string;
     expiry: string;
 }
 
-const TABS = ['Active', 'Used', 'Expired'];
+const idr = (n: number) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
 
-const VOUCHERS: Record<string, Voucher[]> = {
-    Active: [
-        { amount: 'Rp 30.000', code: 'CUCI20', description: 'Diskon 20% · Cuci Setrika', expiry: '12 hari lagi' },
-        { amount: 'Rp 30.000', code: 'CUCI20', description: 'Diskon 20% · Cuci Setrika', expiry: '12 hari lagi' },
-        { amount: 'Rp 30.000', code: 'CUCI20', description: 'Diskon 20% · Cuci Setrika', expiry: '12 hari lagi' },
-    ],
-    Used: [],
-    Expired: [],
-};
+// Built inside the fetch callback so the time-based "expiry" is computed off-render.
+function toVM(v: Voucher, now: number): CardVM {
+    const ms = new Date(v.berlakuHingga).getTime() - now;
+    const expiry = ms <= 0 ? 'Kadaluarsa' : `${Math.ceil(ms / 86_400_000)} hari lagi`;
+    const amount = v.tipeDiskon === 'persen' ? `${v.nilaiDiskon}%` : idr(v.nilaiDiskon);
+    return { id: v.id, amount, code: v.kode, description: `Min. belanja ${idr(v.minPembelian)}`, expiry };
+}
 
 export default function VouchersBoard() {
-    const [active, setActive] = useState('Active');
-    const vouchers = VOUCHERS[active] ?? [];
+    const [active, setActive] = useState<Tab>('Active');
+    const [groups, setGroups] = useState<Record<Tab, CardVM[]>>({ Active: [], Used: [], Expired: [] });
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const pelangganId = getCurrentPelangganId();
+        const request =
+            pelangganId == null
+                ? Promise.reject(new Error('Sesi tidak ditemukan. Silakan masuk kembali.'))
+                : voucherApi.listVouchers(pelangganId, controller.signal);
+
+        request
+            .then((vouchers: Voucher[]) => {
+                const now = Date.now();
+                // "Used" has no per-customer flag in the schema (see CUSTOMER.md); we split on
+                // validity only — fully-claimed vouchers (terpakai >= kuota) count as Used.
+                setGroups({
+                    Active: vouchers
+                        .filter((v) => new Date(v.berlakuHingga).getTime() >= now && v.terpakai < v.kuota)
+                        .map((v) => toVM(v, now)),
+                    Used: vouchers
+                        .filter((v) => new Date(v.berlakuHingga).getTime() >= now && v.terpakai >= v.kuota)
+                        .map((v) => toVM(v, now)),
+                    Expired: vouchers
+                        .filter((v) => new Date(v.berlakuHingga).getTime() < now)
+                        .map((v) => toVM(v, now)),
+                });
+            })
+            .catch((e) => {
+                if (!controller.signal.aborted) setError(getApiErrorMessage(e));
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setIsLoading(false);
+            });
+        return () => controller.abort();
+    }, []);
+
+    const shown = groups[active];
 
     return (
         <div className="flex w-full flex-col gap-[50px]">
             <div className="flex w-full flex-col gap-[30px]">
-                <VoucherTabs tabs={TABS} active={active} onChange={setActive} />
+                <VoucherTabs tabs={TABS} active={active} onChange={(t) => setActive(t as Tab)} />
+
+                {error && (
+                    <p role="alert" className="text-[14px] text-[#ba1a1a]">
+                        {error}
+                    </p>
+                )}
 
                 <div className="flex w-full flex-col gap-[20px]">
-                    {vouchers.map((v, i) => (
-                        <VoucherCard
-                            key={i}
-                            amount={v.amount}
-                            code={v.code}
-                            description={v.description}
-                            expiry={v.expiry}
-                        />
-                    ))}
+                    {isLoading ? (
+                        <p className="text-[15px] text-[#62748e]">Memuat voucher…</p>
+                    ) : shown.length === 0 ? (
+                        <p className="text-[15px] text-[#62748e]">Tidak ada voucher.</p>
+                    ) : (
+                        shown.map((v) => (
+                            <VoucherCard
+                                key={v.id}
+                                amount={v.amount}
+                                code={v.code}
+                                description={v.description}
+                                expiry={v.expiry}
+                            />
+                        ))
+                    )}
                 </div>
             </div>
 

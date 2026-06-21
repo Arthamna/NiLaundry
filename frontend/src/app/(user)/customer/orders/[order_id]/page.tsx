@@ -1,61 +1,178 @@
 'use client';
 
-import React, { Suspense } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import BackButton from '@/components/ui/customer/BackButton';
-import OrderTimeline, { type TimelineStep } from '@/components/ui/customer/OrderTimeline';
-import ServicesSummary from '@/components/ui/customer/ServicesSummary';
-import CourierCard from '@/components/ui/customer/CourierCard';
+import OrderTimeline, { type TimelineStep, type StepState } from '@/components/ui/customer/OrderTimeline';
+import ServicesSummary, { type ServiceLine } from '@/components/ui/customer/ServicesSummary';
 import OrderReviewCard from '@/components/ui/customer/OrderReviewCard';
+import {
+    pesananApi,
+    ulasanApi,
+    getApiErrorMessage,
+    getCurrentPelangganId,
+    type JenisAmbil,
+    type JenisAntar,
+    type PesananDetail,
+    type Ulasan,
+} from '@/lib/api';
 
-const STEPS: TimelineStep[] = [
-    { title: 'Pickup Assigned', time: '06 Jun 09:12', state: 'done' },
-    { title: 'Pickup Completed', time: '06 Jun 10:35', state: 'done' },
-    { title: 'Processing', time: '06 Jun 11:00', state: 'done' },
-    { title: 'Washing', time: '06 Jun 13:00', state: 'done' },
-    { title: 'Ironing', time: 'Est. 07 Jun 11:00', state: 'current' },
-    { title: 'QC', time: '—', state: 'pending' },
-    { title: 'Delivery', time: 'Est. 07 Jun 14:00', state: 'pending' },
-];
+const formatRp = (n: number) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
 
-const SERVICES = [
-    { label: 'Cuci Setrika 3kg', value: 'Rp 30.000' },
-    { label: 'Pewangi Premium', value: 'Rp 5.000' },
-    { label: 'Pickup & Delivery', value: 'Rp 10.000' },
-];
+function formatTimestamp(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+// The tracked statuses are pickup → processing → delivery → completed. Which
+// steps appear depends on the order's scenario (jenis_ambil / jenis_antar):
+//   pickup + delivery → pickup, processing, delivery, completed
+//   pickup + walkin   → pickup, processing, completed
+//   walkin + delivery → processing, delivery, completed
+//   walkin + walkin   → processing, completed
+const STEP_LABEL: Record<string, string> = {
+    pickup: 'Pickup',
+    processing: 'Processing',
+    delivery: 'Delivery',
+    completed: 'Completed',
+};
+
+function scenarioSteps(jenisAmbil: JenisAmbil, jenisAntar: JenisAntar): string[] {
+    const steps: string[] = [];
+    if (jenisAmbil === 'pickup') steps.push('pickup');
+    steps.push('processing');
+    if (jenisAntar === 'delivery') steps.push('delivery');
+    steps.push('completed');
+    return steps;
+}
+
+function buildTimeline(
+    jenisAmbil: JenisAmbil,
+    jenisAntar: JenisAntar,
+    status: string,
+    eta: string,
+): TimelineStep[] {
+    const steps = scenarioSteps(jenisAmbil, jenisAntar);
+    let currentIndex = steps.indexOf(status);
+    if (currentIndex < 0) currentIndex = 0; // tolerate legacy/unknown statuses
+    return steps.map((key, i) => {
+        const state: StepState = i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'pending';
+        const isLast = i === steps.length - 1;
+        const time = isLast ? `Est. ${formatTimestamp(eta)}` : state === 'pending' ? '—' : '';
+        return { title: STEP_LABEL[key] ?? key, time, state };
+    });
+}
 
 function OrderDetailInner() {
     const params = useParams<{ order_id: string }>();
-    const searchParams = useSearchParams();
+    const pesananId = Number(params?.order_id);
 
-    // Temporary placeholder so the route is testable, e.g. /customer/orders/NL-2401
-    const orderId = params?.order_id ?? 'NL-2401';
-    const isCompleted = searchParams.get('status') === 'completed';
-    const status = isCompleted ? 'Selesai' : 'Disetrika';
-    // When present (e.g. ?reviewed=4) the completed detail renders the reviewed state (node 186-2579).
-    const reviewedRating = Number(searchParams.get('reviewed')) || 0;
+    const [detail, setDetail] = useState<PesananDetail | null>(null);
+    const [ulasan, setUlasan] = useState<Ulasan | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const pelangganId = getCurrentPelangganId();
+
+        if (pelangganId == null) {
+            setError('Sesi tidak ditemukan. Silakan masuk kembali.');
+            setIsLoading(false);
+            return;
+        }
+        if (!Number.isInteger(pesananId) || pesananId <= 0) {
+            setError('Pesanan tidak valid.');
+            setIsLoading(false);
+            return;
+        }
+
+        pesananApi
+            .getPesanan(pelangganId, pesananId, controller.signal)
+            .then((d) => {
+                setDetail(d);
+                setUlasan(d.ulasan ?? null);
+                // Completed orders may carry a review the detail endpoint didn't embed.
+                if (d.status === 'selesai' && !d.ulasan) {
+                    return ulasanApi
+                        .getUlasanForPesanan(pelangganId, pesananId, controller.signal)
+                        .then(setUlasan)
+                        .catch(() => {
+                            /* no review yet — fine */
+                        });
+                }
+            })
+            .catch((e) => {
+                if (!controller.signal.aborted) setError(getApiErrorMessage(e));
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setIsLoading(false);
+            });
+        return () => controller.abort();
+    }, [pesananId]);
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col gap-[50px]">
+                <DashboardHeader />
+                <p className="text-[15px] text-[#62748e]">Memuat detail pesanan…</p>
+            </div>
+        );
+    }
+
+    if (error || !detail) {
+        return (
+            <div className="flex flex-col gap-[50px]">
+                <DashboardHeader />
+                <div className="flex flex-col gap-[20px]">
+                    <BackButton href="/customer/orders" />
+                    <p role="alert" className="text-[14px] text-[#ba1a1a]">
+                        {error ?? 'Pesanan tidak ditemukan.'}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const isCompleted = detail.status === 'completed' || detail.status === 'selesai';
+
+    // `layanan_id`→name isn't embedded by getPesanan yet (CUSTOMER.md gap #3), so each
+    // line is labelled neutrally by its tarif until the join is added server-side.
+    const serviceLines: ServiceLine[] = detail.items.map((it) => ({
+        label: `Layanan (tarif #${it.tarifId}) × ${it.kuantitas}`,
+        value: formatRp(it.subtotal),
+    }));
 
     return (
         <div className="flex flex-col gap-[50px]">
-            <DashboardHeader name="Sarah Jenkins" activeVouchers={3} membership="Gold Member" />
+            <DashboardHeader />
 
             <div className="flex w-full flex-col gap-[20px]">
                 <BackButton href="/customer/orders" />
 
-                <OrderTimeline orderId={`#${orderId}`} service="Cuci Setrika Reguler" status={status} steps={STEPS} />
-
-                <ServicesSummary
-                    items={SERVICES}
-                    voucher={{ label: 'Voucher CUCI20', value: '-Rp 9.000' }}
-                    total={{ label: 'Total', value: 'Rp 36.000' }}
+                <OrderTimeline
+                    orderId={`#${detail.id}`}
+                    service="Pesanan Laundry"
+                    status={detail.status}
+                    steps={buildTimeline(detail.jenisAmbil, detail.jenisAntar, detail.status, detail.estimasiSelesai)}
                 />
 
-                {/* Completed orders show the review part; active orders show the courier. */}
-                {isCompleted ? (
-                    <OrderReviewCard orderId={orderId} service="Cuci Setrika Reguler" initialRating={reviewedRating} />
-                ) : (
-                    <CourierCard initials="BS" name="Budi Santoso" vehicle="Motor · B 4421 KZA" onChat={() => {}} />
+                <ServicesSummary
+                    items={serviceLines.length > 0 ? serviceLines : [{ label: 'Tidak ada item', value: '—' }]}
+                    total={{ label: 'Total', value: formatRp(detail.totalHarga) }}
+                />
+
+                {/* Courier/delivery block needs the `pengiriman`+`kurir` join, which has
+                    no customer endpoint yet (CUSTOMER.md gap #4) — omitted until added. */}
+                {isCompleted && (
+                    <OrderReviewCard
+                        orderId={String(detail.id)}
+                        service="Pesanan Laundry"
+                        initialRating={ulasan?.rating ?? 0}
+                        initialComment={ulasan?.komentar ?? ''}
+                    />
                 )}
             </div>
         </div>
