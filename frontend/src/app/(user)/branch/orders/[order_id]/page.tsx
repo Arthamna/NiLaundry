@@ -9,7 +9,7 @@ import OrdersStatCards from '@/components/ui/branch/OrdersStatCards';
 import OrdersTable, { OrdersRow } from '@/components/ui/branch/OrdersTable';
 import OrderStatusDrawer from '@/components/ui/branch/OrderStatusDrawer';
 
-const FILTERS = ['All', 'Pickup', 'Processing', 'Ready', 'Completed'];
+const FILTERS = ['All', 'Pickup', 'Processing', 'Delivery', 'Completed'];
 
 // Faded backdrop rows (dimmed behind the drawer scrim).
 const ORDERS: OrdersRow[] = [

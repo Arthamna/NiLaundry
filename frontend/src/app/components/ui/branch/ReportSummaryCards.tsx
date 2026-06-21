@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, TrendingUp } from 'lucide-react';
 
 interface MethodSegment {
     label: string;
@@ -28,7 +28,7 @@ const DONUT_GRADIENT = (() => {
 
 export default function ReportSummaryCards() {
     return (
-        <div className="grid h-[180px] w-full grid-cols-2 gap-x-4">
+        <div className="grid h-[180px] w-full grid-cols-3 gap-x-4">
             {/* Total Paid */}
             <div className="flex flex-col overflow-clip rounded-[12px] border border-[#e2e8f0] bg-white p-[25px]">
                 <div className="flex items-center gap-2 pb-4">
@@ -43,6 +43,22 @@ export default function ReportSummaryCards() {
                     Rp 12.0M
                 </p>
                 <p className="text-[14px] leading-5 text-[#6e7977]">452 successful transactions</p>
+            </div>
+
+            {/* Average per transaction */}
+            <div className="flex flex-col overflow-clip rounded-[12px] border border-[#e2e8f0] bg-white p-[25px]">
+                <div className="flex items-center gap-2 pb-4">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-[rgba(14,165,233,0.1)]">
+                        <TrendingUp size={14} className="text-[#0ea5e9]" />
+                    </span>
+                    <span className="text-[14px] leading-5 font-medium tracking-[0.7px] text-[#3e4947] uppercase">
+                        Average / Transaction
+                    </span>
+                </div>
+                <p className="pb-1 text-[36px] leading-[44px] font-bold tracking-[-0.72px] text-[#181c1c]">
+                    Rp 86.250
+                </p>
+                <p className="text-[14px] leading-5 text-[#6e7977]">Average per invoice</p>
             </div>
 
             {/* Method breakdown */}

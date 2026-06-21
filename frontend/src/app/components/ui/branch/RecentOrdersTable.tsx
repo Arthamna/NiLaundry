@@ -1,5 +1,6 @@
 import React from 'react';
 import StatusBadge, { OrderStatus } from '@/components/ui/branch/StatusBadge';
+import { AVATAR_TONES, AvatarTone } from '@/components/ui/branch/avatarTones';
 
 export interface OrderRow {
     id: string;
@@ -7,16 +8,11 @@ export interface OrderRow {
     customerName: string;
     customerPhone: string;
     initials: string;
-    avatarTone: 'mint' | 'gray';
+    avatarTone: AvatarTone;
     estFinish: string;
     isOverdue: boolean;
     status: OrderStatus;
 }
-
-const AVATAR_TONES = {
-    mint: 'bg-[#6df5e1] text-[#006f64]',
-    gray: 'bg-[#e5e9e7] border border-[#bdc9c6] text-[#3e4947]',
-} as const;
 
 export default function RecentOrdersTable({ rows }: { rows: OrderRow[] }) {
     return (
