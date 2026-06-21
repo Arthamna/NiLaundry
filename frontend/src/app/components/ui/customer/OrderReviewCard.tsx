@@ -16,13 +16,20 @@ interface OrderReviewCardProps {
     service?: string;
     /** When > 0 the order is already reviewed → show the reviewed state (node 186-2579). */
     initialRating?: number;
+    /** The submitted review comment, shown alongside the stars in the reviewed state. */
+    initialComment?: string;
 }
 
-export default function OrderReviewCard({ orderId, service = 'Cuci Setrika Reguler', initialRating = 0 }: OrderReviewCardProps) {
+export default function OrderReviewCard({
+    orderId,
+    service = 'Cuci Setrika Reguler',
+    initialRating = 0,
+    initialComment = '',
+}: OrderReviewCardProps) {
     const router = useRouter();
     const [hover, setHover] = useState(0);
 
-    // Reviewed state (node 186-2579): centered gold stars + label.
+    // Reviewed state (node 186-2579): centered gold stars + label + the comment.
     if (initialRating > 0) {
         return (
             <div className="flex w-full flex-col items-center justify-center gap-[20px] rounded-[12.75px] border border-[#bdc9c6] bg-white p-[15px] drop-shadow-[0px_1px_1px_rgba(15,23,42,0.04)]">
@@ -39,6 +46,11 @@ export default function OrderReviewCard({ orderId, service = 'Cuci Setrika Regul
                     ))}
                 </div>
                 <p className="w-full text-center text-[12px] leading-[14px] font-normal text-[#62748e]">{RATING_LABEL[initialRating]}</p>
+                {initialComment.trim().length > 0 && (
+                    <p className="w-full text-center text-[13px] leading-[18px] font-normal text-[#314158]">
+                        “{initialComment}”
+                    </p>
+                )}
             </div>
         );
     }

@@ -1,35 +1,70 @@
 'use client';
 
-import React from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import OrdersSection from '@/components/ui/customer/OrdersSection';
-import OrderCard, { type OrderStep } from '@/components/ui/customer/OrderCard';
+import OrderCard from '@/components/ui/customer/OrderCard';
+import { pesananApi, ulasanApi, getApiErrorMessage, getCurrentPelangganId, type Pesanan } from '@/lib/api';
 
-const ACTIVE_STEPS: OrderStep[] = [
-    { label: 'Pickup', done: true },
-    { label: 'Cuci', done: true },
-    { label: 'Setrika', done: true },
-    { label: 'Antar', done: false },
-];
+// Completed orders use status 'completed' (new delivery flow); 'selesai' is the
+// legacy value kept for older rows.
+const isCompletedStatus = (status: string): boolean => status === 'completed' || status === 'selesai';
 
-const ACTIVE_ORDERS = [
-    { id: '#NL-2401', service: 'Cuci Setrika Reguler', eta: 'ETA hari ini · 14:00 WIB' },
-    { id: '#NL-2402', service: 'Cuci Setrika Reguler', eta: 'ETA hari ini · 14:00 WIB' },
-    { id: '#NL-2403', service: 'Cuci Setrika Reguler', eta: 'ETA hari ini · 14:00 WIB' },
-];
-
-const COMPLETED_ORDERS = [
-    { id: '#NL-2388', service: 'Cuci Setrika Reguler', eta: 'Selesai · 12 Jun 16:00 WIB' },
-    { id: '#NL-2389', service: 'Cuci Setrika Reguler', eta: 'Selesai · 11 Jun 15:00 WIB' },
-    { id: '#NL-2390', service: 'Cuci Setrika Reguler', eta: 'Selesai · 10 Jun 18:00 WIB' },
-];
+function formatEta(p: Pesanan): string {
+    const d = new Date(p.estimasiSelesai);
+    if (Number.isNaN(d.getTime())) return '';
+    const fmt = d.toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    return isCompletedStatus(p.status) ? `Selesai · ${fmt}` : `ETA ${fmt}`;
+}
 
 export default function CustomerOrdersPage() {
+    const [orders, setOrders] = useState<Pesanan[]>([]);
+    // pesananId set of orders this customer has already reviewed (GET /pelanggan/{id}/ulasan).
+    const [reviewedIds, setReviewedIds] = useState<Set<number>>(new Set());
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const pelangganId = getCurrentPelangganId();
+
+        if (pelangganId == null) {
+            setError('Sesi tidak ditemukan. Silakan masuk kembali.');
+            setIsLoading(false);
+            return;
+        }
+
+        Promise.all([
+            pesananApi.listPesanan(pelangganId, undefined, controller.signal),
+            // Reviews are non-critical for the list; fall back to none on error.
+            ulasanApi.listUlasan(pelangganId, controller.signal).catch(() => []),
+        ])
+            .then(([pesanan, ulasan]) => {
+                setOrders(pesanan);
+                setReviewedIds(new Set(ulasan.map((u) => u.pesananId)));
+            })
+            .catch((e) => {
+                if (!controller.signal.aborted) setError(getApiErrorMessage(e));
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setIsLoading(false);
+            });
+        return () => controller.abort();
+    }, []);
+
+    const activeOrders = orders.filter((o) => !isCompletedStatus(o.status));
+    const completedOrders = orders.filter((o) => isCompletedStatus(o.status));
+
     return (
         <div className="flex flex-col gap-[50px]">
-            <DashboardHeader name="Sarah Jenkins" activeVouchers={3} membership="Gold Member" />
+            <DashboardHeader />
 
             <div className="flex w-full flex-col gap-[40px]">
                 <div className="flex items-center justify-between">
@@ -42,30 +77,52 @@ export default function CustomerOrdersPage() {
                     </Link>
                 </div>
 
-                <OrdersSection title="Active Order">
-                    {ACTIVE_ORDERS.map((o) => (
-                        <OrderCard
-                            key={o.id}
-                            orderId={o.id}
-                            service={o.service}
-                            status="disetrika"
-                            eta={o.eta}
-                            steps={ACTIVE_STEPS}
-                        />
-                    ))}
-                </OrdersSection>
+                {error && (
+                    <p role="alert" className="text-[14px] text-[#ba1a1a]">
+                        {error}
+                    </p>
+                )}
 
-                <OrdersSection title="Completed Order">
-                    {COMPLETED_ORDERS.map((o) => (
-                        <OrderCard
-                            key={o.id}
-                            orderId={o.id}
-                            service={o.service}
-                            status="selesai"
-                            eta={o.eta}
-                        />
-                    ))}
-                </OrdersSection>
+                {isLoading ? (
+                    <p className="text-[15px] text-[#62748e]">Memuat pesanan…</p>
+                ) : (
+                    <>
+                        {/* `service` name is not stored on pesanan (see CUSTOMER.md) — neutral
+                            label until listPesanan embeds the layanan/service summary. */}
+                        <OrdersSection title="Active Order">
+                            {activeOrders.length === 0 ? (
+                                <p className="text-[15px] text-[#62748e]">Tidak ada pesanan aktif.</p>
+                            ) : (
+                                activeOrders.map((o) => (
+                                    <OrderCard
+                                        key={o.id}
+                                        orderId={`#${o.id}`}
+                                        service="Pesanan Laundry"
+                                        status={o.status}
+                                        eta={formatEta(o)}
+                                    />
+                                ))
+                            )}
+                        </OrdersSection>
+
+                        <OrdersSection title="Completed Order">
+                            {completedOrders.length === 0 ? (
+                                <p className="text-[15px] text-[#62748e]">Belum ada pesanan selesai.</p>
+                            ) : (
+                                completedOrders.map((o) => (
+                                    <OrderCard
+                                        key={o.id}
+                                        orderId={`#${o.id}`}
+                                        service="Pesanan Laundry"
+                                        status={o.status}
+                                        eta={formatEta(o)}
+                                        isReviewed={reviewedIds.has(o.id)}
+                                    />
+                                ))
+                            )}
+                        </OrdersSection>
+                    </>
+                )}
             </div>
         </div>
     );

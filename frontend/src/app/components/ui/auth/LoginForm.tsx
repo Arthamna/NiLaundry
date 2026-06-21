@@ -31,9 +31,11 @@ export default function LoginForm() {
             if (result.subjectType === 'pelanggan') {
                 router.push('/customer/dashboard');
             } else if (result.role === 'superadmin') {
-                router.push('/superadmin/dashboard');
-            } else {
+                // Top-level admin (backend role 'superadmin') → /admin console.
                 router.push('/admin/dashboard');
+            } else {
+                // Branch staff (backend role 'admin') → /branch console.
+                router.push('/branch/dashboard');
             }
         } catch (err: unknown) {
             setError(getApiErrorMessage(err));

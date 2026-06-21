@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { getStatusBadge } from '@/lib/orderStatus';
 
 export type StepState = 'done' | 'current' | 'pending';
 
@@ -42,6 +43,7 @@ interface OrderTimelineProps {
 }
 
 export default function OrderTimeline({ orderId, service, status, steps }: OrderTimelineProps) {
+    const s = getStatusBadge(status);
     return (
         <div className="flex w-full flex-col rounded-[12.75px] border border-[#bdc9c6] bg-white p-[11.5px] drop-shadow-[0px_1px_1px_rgba(15,23,42,0.04)]">
             <div className="flex items-center justify-between">
@@ -49,9 +51,9 @@ export default function OrderTimeline({ orderId, service, status, steps }: Order
                     <p className="text-[11px] leading-[16.5px] font-normal text-[#62748e]">{orderId}</p>
                     <p className="text-[12.25px] leading-[17.5px] font-bold text-[#0f172b]">{service}</p>
                 </div>
-                <div className="flex items-center gap-[5.25px] rounded-full bg-[#faf5ff] px-[7px] py-[1.75px]">
-                    <span className="size-[5.25px] rounded-full bg-[#ad46ff]" />
-                    <p className="text-[10.5px] leading-[14px] font-normal text-[#8200db]">{status}</p>
+                <div className={`flex items-center gap-[5.25px] rounded-full px-[7px] py-[1.75px] ${s.badge}`}>
+                    <span className={`size-[5.25px] rounded-full ${s.dot}`} />
+                    <p className={`text-[10.5px] leading-[14px] font-normal ${s.text}`}>{s.label}</p>
                 </div>
             </div>
 

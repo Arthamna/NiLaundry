@@ -41,7 +41,7 @@ function StepNode({ step }: { step: Step }) {
     );
 }
 
-export default function OrderProgress({ orderId, estimatedTime, statusLabel, steps, progress = 2 / 3 }: OrderProgressProps) {
+export default function OrderProgress({ orderId, estimatedTime, statusLabel, steps, progress = 1 }: OrderProgressProps) {
     return (
         <div className="overflow-hidden rounded-[12px] border border-[#bdc9c6] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
             <div className="flex items-center justify-between border-b border-[#bdc9c6] px-6 pt-6 pb-[25px]">

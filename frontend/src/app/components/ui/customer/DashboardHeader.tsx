@@ -1,19 +1,59 @@
 'use client';
 
-import React from 'react';
-import Image from 'next/image';
-import { Bell } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { getCachedPelanggan, getCurrentPelangganId, voucherApi } from '@/lib/api';
 
+/**
+ * Page header shown on every customer page.
+ *
+ * Called with no props on customer pages → it self-resolves the logged-in
+ * customer's name from the session cache and counts currently-valid vouchers
+ * from GET /pelanggan/{id}/voucher. The optional props remain for other callers
+ * (admin/superadmin/help) that still pass explicit values; when given they win.
+ */
 interface DashboardHeaderProps {
-    name: string;
-    activeVouchers: number;
-    /** @deprecated No longer rendered — kept for backward compatibility with existing callers. */
+    name?: string;
+    activeVouchers?: number;
+    /** @deprecated not rendered; kept for backward compatibility with existing callers. */
     membership?: string;
+    /** @deprecated not rendered; kept for backward compatibility with existing callers. */
     avatarUrl?: string;
 }
 
-export default function DashboardHeader({ name, activeVouchers, avatarUrl }: DashboardHeaderProps) {
-    const firstName = name.split(' ')[0];
+export default function DashboardHeader(props: DashboardHeaderProps) {
+    // Start from props only so SSR and the first client render match (the session
+    // cache lives in localStorage, which is unavailable on the server). The cached
+    // name is filled in after mount to avoid a hydration mismatch.
+    const [name, setName] = useState(props.name ?? '');
+    const [activeVouchers, setActiveVouchers] = useState(props.activeVouchers ?? 0);
+
+    useEffect(() => {
+        if (props.name != null) return;
+        const cachedName = getCachedPelanggan()?.nama;
+        if (cachedName) setName(cachedName);
+    }, [props.name]);
+
+    useEffect(() => {
+        if (props.activeVouchers != null) return;
+        const pelangganId = getCurrentPelangganId();
+        if (pelangganId == null) return;
+
+        const controller = new AbortController();
+        voucherApi
+            .listVouchers(pelangganId, controller.signal)
+            .then((vouchers) => {
+                const now = Date.now();
+                const valid = vouchers.filter((v) => new Date(v.berlakuHingga).getTime() >= now);
+                setActiveVouchers(valid.length);
+            })
+            .catch(() => {
+                /* header badge is non-critical; ignore fetch errors */
+            });
+        return () => controller.abort();
+    }, [props.activeVouchers]);
+
+    const firstName = name.split(' ')[0] || 'there';
+    const initial = firstName.charAt(0).toUpperCase() || '?';
 
     return (
         <header className="flex h-[66px] items-center justify-between">
@@ -28,22 +68,16 @@ export default function DashboardHeader({ name, activeVouchers, avatarUrl }: Das
                 </div>
             </div>
             <div className="flex items-center gap-4">
-                {/* <button
-                    className="flex size-10 items-center justify-center rounded-full bg-[#ebefed] transition-colors hover:bg-[#dde3e1]"
-                    aria-label="Notifications"
+                <button
+                    onClick={() => window.location.href = '/customer/profile'}
+                    className="flex items-center gap-2 rounded-full border border-[#bdc9c6] bg-white py-[5px] pr-[17px] pl-[9px]"
+                    aria-label="User Profile"
                 >
-                    <Bell size={20} className="text-[#3e4947]" />
-                </button> */}
-                <div className="flex items-center gap-2 rounded-full border border-[#bdc9c6] bg-white pl-[9px] pr-[17px] py-[5px]" aria-label="User Profile">
-                    {avatarUrl ? (
-                        <Image src={avatarUrl} width={32} height={32} alt={name} className="size-8 rounded-full object-cover" />
-                    ) : (
-                        <div className="flex size-8 items-center justify-center rounded-full bg-[#80d5cb] text-sm font-bold text-[#005c55]">
-                            {firstName[0]}
-                        </div>
-                    )}
-                    <span className="text-[15px] leading-5 font-medium text-[#181c1c]">{name}</span>
-                </div>
+                    <div className="flex size-8 items-center justify-center rounded-full bg-[#80d5cb] text-sm font-bold text-[#005c55]">
+                        {initial}
+                    </div>
+                    <span className="text-[15px] leading-5 font-medium text-[#181c1c]">{name || 'Guest'}</span>
+                </button>
             </div>
         </header>
     );

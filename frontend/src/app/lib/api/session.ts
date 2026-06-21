@@ -64,6 +64,15 @@ export function getCurrentPelangganId(): number | null {
     return p?.id ?? null;
 }
 
+/**
+ * The logged-in branch admin's id_cabang — sourced from the pengguna profile
+ * (role 'admin'). null for customers and for superadmins (who manage all branches).
+ * Used to scope every /branch/{id_cabang}/... endpoint.
+ */
+export function getCurrentCabangId(): number | null {
+    return getCachedPengguna()?.cabangId ?? null;
+}
+
 /** Persist the session after a successful login. Handles both subject types. */
 export function setSession(result: UnifiedAuthResponse): void {
     if (!isBrowser()) return;

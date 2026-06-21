@@ -3,13 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Star } from 'lucide-react';
-
-export type OrderStatusKey = 'disetrika' | 'selesai';
-
-const STATUS: Record<OrderStatusKey, { label: string; badge: string; dot: string; text: string }> = {
-    disetrika: { label: 'Disetrika', badge: 'bg-[#faf5ff]', dot: 'bg-[#ad46ff]', text: 'text-[#8200db]' },
-    selesai: { label: 'Selesai', badge: 'bg-[#46ecd5]', dot: 'bg-[#007a55]', text: 'text-[#007a55]' },
-};
+import { getStatusBadge, isCompletedStatus } from '@/lib/orderStatus';
 
 export interface OrderStep {
     label: string;
@@ -19,9 +13,12 @@ export interface OrderStep {
 interface OrderCardProps {
     orderId: string;
     service: string;
-    status: OrderStatusKey;
+    /** Raw backend status_pesanan (e.g. 'pickup' | 'processing' | 'delivery' | 'completed'). */
+    status: string;
     eta: string;
     steps?: OrderStep[];
+    /** Completed orders that already have a review hide the rating row. */
+    isReviewed?: boolean;
 }
 
 function RatingRow({ cleanId, service }: { cleanId: string; service: string }) {
@@ -55,14 +52,13 @@ function RatingRow({ cleanId, service }: { cleanId: string; service: string }) {
     );
 }
 
-export default function OrderCard({ orderId, service, status, eta, steps }: OrderCardProps) {
+export default function OrderCard({ orderId, service, status, eta, steps, isReviewed }: OrderCardProps) {
     const router = useRouter();
-    const s = STATUS[status];
+    const s = getStatusBadge(status);
     const cleanId = orderId.replace(/^#/, '');
-    const detailStatus = status === 'selesai' ? 'completed' : 'active';
 
     function goDetail() {
-        router.push(`/customer/orders/${encodeURIComponent(cleanId)}?status=${detailStatus}`);
+        router.push(`/customer/orders/${encodeURIComponent(cleanId)}`);
     }
 
     return (
@@ -94,8 +90,9 @@ export default function OrderCard({ orderId, service, status, eta, steps }: Orde
 
             <p className="pt-[7px] text-[11px] leading-[16.5px] font-normal text-[#6e7977]">{eta}</p>
 
-            {/* Completed orders that are not reviewed yet show the rating row. */}
-            {status === 'selesai' && <RatingRow cleanId={cleanId} service={service} />}
+            {/* Completed orders that are not reviewed yet show the rating row;
+                once reviewed the row disappears (Path A). */}
+            {isCompletedStatus(status) && !isReviewed && <RatingRow cleanId={cleanId} service={service} />}
         </div>
     );
 }

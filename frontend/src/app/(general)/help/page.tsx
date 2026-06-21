@@ -56,7 +56,7 @@ const FAQ_SECTIONS = [
 export default function HelpPage() {
     return (
         <div className="flex flex-col gap-[50px]">
-            <DashboardHeader name="Sarah Jenkins" activeVouchers={3} />
+            <DashboardHeader />
 
             <div className="flex flex-col gap-[20px]">
                 <HelpHero />
