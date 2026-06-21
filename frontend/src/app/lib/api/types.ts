@@ -228,3 +228,122 @@ export interface UnifiedAuthResponse {
     pelanggan: Pelanggan | null;
     pengguna: Pengguna | null;
 }
+
+// =============================================================================
+// ADMIN (ADMIN_ENDPOINT.md) — branch-scoped staff console (the /branch pages).
+//
+// Admins authenticate through the unified /auth/login as a `pengguna` with
+// role 'admin'; their id_cabang comes from Pengguna.cabangId. The DTOs below
+// describe the *data* payloads that GET/PUT /branch/{id_cabang}/... return.
+// =============================================================================
+
+// --- Dashboard: GET /branch/{id_cabang}/order/statistik/data ------------------
+/** Today's Order (count) + Today's Revenue (SUM total_harga_pesanan paid today). */
+export interface OrderStatistik {
+    todaysOrder: number;
+    todaysRevenue: number;
+}
+
+// --- Orders: list + per-status grouping --------------------------------------
+/** A summary of one customer attached to an order row. */
+export interface PelangganRingkas {
+    id: number; // id_pelanggan
+    nama: string; // nama_pelanggan
+    noTelp: string; // no_telp_pelanggan
+}
+
+/**
+ * Order row for the admin order list (GET /branch/{id_cabang}/order/list).
+ * Mirrors `pesanan` joined with its `pelanggan`.
+ */
+export interface AdminOrder {
+    id: number; // id_pesanan
+    status: StatusPesanan; // status_pesanan
+    jumlahItem: number; // jumlah_item_pesanan
+    estimasiSelesai: string; // estimasi_selesai_pesanan (ISO timestamp)
+    totalHarga: number; // total_harga_pesanan
+    catatan: string; // catatan_pesanan
+    voucherId: number | null; // voucher_id_voucher
+    pegawaiId: number; // pegawai_id_pegawai
+    pelanggan: PelangganRingkas;
+}
+
+/** One status bucket for GET /branch/{id_cabang}/order/statistik/status. */
+export interface OrderStatusCount {
+    status: StatusPesanan; // status_pesanan
+    count: number; // COUNT(*) GROUP BY status_pesanan
+}
+
+/** Per-status counts plus the branch-wide total order count. */
+export interface OrderStatusStatistik {
+    total: number;
+    counts: OrderStatusCount[];
+}
+
+// --- Order detail: GET/PUT /branch/{id_cabang}/order/{id_pesanan}/detail -------
+/** One line item in an order detail, joined with its layanan/tarif. */
+export interface AdminOrderItem {
+    id: number; // id_item_pesanan
+    layananNama: string; // layanan.nama_layanan
+    satuan: string; // layanan.satuan_layanan
+    kuantitas: number; // kuantitas_satuan_item_pesanan
+    subtotal: number; // subtotal_pesanan
+    catatan: string | null; // catatan_item_pesanan
+    tarifId: number; // tarif_id_tarif
+}
+
+/** Full order detail = the order row + its line items (+ payment when present). */
+export interface AdminOrderDetail extends AdminOrder {
+    items: AdminOrderItem[];
+    pembayaran: Pembayaran | null;
+}
+
+/**
+ * Payload for PUT /branch/{id_cabang}/order/{id_pesanan}/detail.
+ * status values follow the transition table in ADMIN_ENDPOINT.md
+ * (paid | pickup | processing | completed | delivery). employeeId/pin carry the
+ * "Employee Verification" the status-update drawer collects to confirm the change.
+ */
+export interface UpdateOrderDetailInput {
+    status?: StatusPesanan;
+    estimasiSelesai?: string; // ISO timestamp
+    employeeId?: string; // pegawai id or name entered for verification
+    pin?: string; // staff PIN / password
+}
+
+/** Query params for the paginated/sortable/filterable order list (go-pagination). */
+export interface ListOrdersParams {
+    page?: number;
+    limit?: number;
+    sort?: string; // e.g. 'estimasi_selesai_pesanan desc'
+    search?: string;
+    status?: StatusPesanan;
+}
+
+// --- Report: payment statistics ----------------------------------------------
+/**
+ * A paid payment row for GET /branch/{id_cabang}/order/statistik/payment
+ * (only status_pembayaran = paid). Used for the Report ledger.
+ */
+export interface AdminPayment {
+    id: number; // id_pembayaran (shown as Invoice ID)
+    pesananId: number; // pesanan_id_pesanan
+    pelangganNama: string; // pelanggan.nama_pelanggan
+    pelangganNoTelp: string; // pelanggan.no_telp_pelanggan
+    waktu: string; // waktu_pembayaran (ISO timestamp)
+    metode: string; // metode_pembayaran
+    jumlah: number; // jumlah_pembayaran
+}
+
+/** Per-method count: GET /branch/{id_cabang}/order/statistik/payment/method. */
+export interface PaymentMethodStat {
+    metode: string; // metode_pembayaran
+    count: number; // COUNT(*) of paid payments with this method
+}
+
+/** Per-method count + summed amount: .../payment/method/total. */
+export interface PaymentMethodTotal {
+    metode: string; // metode_pembayaran
+    count: number;
+    total: number; // SUM(jumlah_pembayaran)
+}

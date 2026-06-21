@@ -4,16 +4,12 @@
 //   POST /auth/login     -> unified login (pelanggan or pengguna)
 //
 // Login persists the session via setSession(); the caller inspects the
-// returned UnifiedAuthResponse.subjectType to decide where to redirect.
+// returned UnifiedAuthResponse.subjectType / role to decide where to redirect
+// (customer dashboard vs the /branch admin console).
 
 import { apiFetch } from './client';
 import { setPelangganSession, setSession, clearSession } from './session';
-import type {
-    LoginInput,
-    RegisterInput,
-    RegisterResponse,
-    UnifiedAuthResponse,
-} from './types';
+import type { LoginInput, RegisterInput, RegisterResponse, UnifiedAuthResponse } from './types';
 
 /**
  * POST /auth/login — log in and persist the session. Inspect

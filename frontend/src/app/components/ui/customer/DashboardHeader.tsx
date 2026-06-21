@@ -8,7 +8,6 @@ interface DashboardHeaderProps {
     name: string;
     activeVouchers: number;
     /** @deprecated No longer rendered — kept for backward compatibility with existing callers. */
-    membership?: string;
     avatarUrl?: string;
 }
 

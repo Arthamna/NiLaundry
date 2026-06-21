@@ -61,7 +61,7 @@ export default function CustomerDashboardPage() {
 
     return (
         <div className="flex flex-col gap-[50px]">
-            <DashboardHeader name={displayName} activeVouchers={3} membership="Gold Member" />
+            <DashboardHeader name={displayName} activeVouchers={3} />
             <StatsGrid activeOrders={2} completedOrders={48} totalSaved="$124.50" />
             <div className="grid grid-cols-12 gap-6">
                 <div className="col-span-8 flex flex-col gap-6">
