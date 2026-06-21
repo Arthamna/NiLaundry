@@ -11,11 +11,12 @@ APP_PORT=8080
 JWT_SECRET_KEY=ganti-pakai-string-acak-yang-panjang
 ```
 
-2. Run Postgres DB (Local) :
+2. Run Postgres DB (If Local) :
 
 
 cd backend
 make up        # docker compose up postgre-db
+
 
 3. Buat database + jalankan migration + seed:
 
@@ -44,7 +45,9 @@ Server listen di http://localhost:8080.
 5. Jalankan frontend (di terminal lain):
 
 
+```
 cd ../frontend
 npm install
-# pastikan .env.local punya: NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+# pastikan .env (di frontend folder) punya: NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 npm run dev
+```

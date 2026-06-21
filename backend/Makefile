@@ -1,6 +1,10 @@
 PROJECT=nilaundry
 SCRIPT_DIR=pkg/database/script
-PSQL=docker exec -i postgre-db psql -U $(DB_USER) -d $(DB_DBNAME)
+
+# change if u using local
+# PSQL=docker exec -i postgre-db psql -U $(DB_USER) -d $(DB_DBNAME)
+# supabase
+PSQL= psql postgresql://$(DB_USER):$(DB_PASS)@$(DB_HOST):$(DB_PORT)/postgres
 
 include .env
 export
