@@ -155,15 +155,24 @@ func (s *pesananService) Create(ctx context.Context, pelangganID int, req dtos.C
 		estimasi = *req.EstimasiSelesai
 	}
 
+	// Auto-assign the default status to the first step of the chosen scenario:
+	// a pickup-flow order starts at "pickup"; a walk-in order starts at "processing".
+	defaultStatus := constants.StatusPesananProcessing
+	if req.JenisAmbil == constants.JenisAmbilPickup {
+		defaultStatus = constants.StatusPesananPickup
+	}
+
 	pesanan := &models.Pesanan{
 		JumlahItemPesanan:      len(req.Items),
-		StatusPesanan:          constants.StatusPesananMenunggu,
+		StatusPesanan:          defaultStatus,
 		CatatanPesanan:         req.Catatan,
 		EstimasiSelesaiPesanan: estimasi,
 		TotalHargaPesanan:      total,
 		PelangganIDPelanggan:   pelangganID,
 		VoucherIDVoucher:       nil,
 		PegawaiIDPegawai:       pegawai.IDPegawai,
+		JenisAmbil:             req.JenisAmbil,
+		JenisAntar:             req.JenisAntar,
 	}
 
 	err = s.pesananRepo.CreateOrderTx(ctx, func(tx *gorm.DB) error {

@@ -12,6 +12,8 @@ type Pesanan struct {
 	PelangganIDPelanggan   int       `gorm:"column:pelanggan_id_pelanggan"`
 	VoucherIDVoucher       *int      `gorm:"column:voucher_id_voucher"`
 	PegawaiIDPegawai       int       `gorm:"column:pegawai_id_pegawai"`
+	JenisAmbil             string    `gorm:"column:jenis_ambil"` // 'pickup' | 'walkin'
+	JenisAntar             string    `gorm:"column:jenis_antar"` // 'delivery' | 'walkin'
 }
 
 func (Pesanan) TableName() string { return "pesanan" }

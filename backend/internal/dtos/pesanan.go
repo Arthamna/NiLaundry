@@ -15,6 +15,8 @@ type PesananResponse struct {
 	PelangganID     int       `json:"pelangganId"`
 	VoucherID       *int      `json:"voucherId"`
 	PegawaiID       int       `json:"pegawaiId"`
+	JenisAmbil      string    `json:"jenisAmbil"` // 'pickup' | 'walkin'
+	JenisAntar      string    `json:"jenisAntar"` // 'delivery' | 'walkin'
 }
 
 type ItemPesananResponse struct {
@@ -39,11 +41,13 @@ type ItemPesananInput struct {
 }
 
 type CreatePesananRequest struct {
-	CabangID        int                `json:"cabangId" binding:"required"`
-	Catatan         string             `json:"catatan"`
-	EstimasiSelesai *time.Time         `json:"estimasiSelesai"`
-	MetodePembayaran string            `json:"metodePembayaran" binding:"required"`
-	Items           []ItemPesananInput `json:"items" binding:"required,min=1,dive"`
+	CabangID         int                `json:"cabangId" binding:"required"`
+	Catatan          string             `json:"catatan"`
+	EstimasiSelesai  *time.Time         `json:"estimasiSelesai"`
+	MetodePembayaran string             `json:"metodePembayaran" binding:"required"`
+	JenisAmbil       string             `json:"jenisAmbil" binding:"required,oneof=pickup walkin"`
+	JenisAntar       string             `json:"jenisAntar" binding:"required,oneof=delivery walkin"`
+	Items            []ItemPesananInput `json:"items" binding:"required,min=1,dive"`
 }
 
 type SubtotalResponse struct {
@@ -65,6 +69,8 @@ func ToPesananResponse(p *models.Pesanan) PesananResponse {
 		PelangganID:     p.PelangganIDPelanggan,
 		VoucherID:       p.VoucherIDVoucher,
 		PegawaiID:       p.PegawaiIDPegawai,
+		JenisAmbil:      p.JenisAmbil,
+		JenisAntar:      p.JenisAntar,
 	}
 }
 

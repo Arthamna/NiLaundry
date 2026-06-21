@@ -119,7 +119,10 @@ CREATE TABLE pesanan (
     total_harga_pesanan      NUMERIC(12,2) NOT NULL,
     pelanggan_id_pelanggan   INT NOT NULL REFERENCES pelanggan(id_pelanggan),
     voucher_id_voucher       INT REFERENCES voucher(id_voucher),
-    pegawai_id_pegawai       INT NOT NULL REFERENCES pegawai(id_pegawai)
+    pegawai_id_pegawai       INT NOT NULL REFERENCES pegawai(id_pegawai),
+    -- Delivery scenario: how the laundry is sent in / returned.
+    jenis_ambil              VARCHAR(16) NOT NULL DEFAULT 'pickup',   -- 'pickup' | 'walkin'
+    jenis_antar              VARCHAR(16) NOT NULL DEFAULT 'delivery'  -- 'delivery' | 'walkin'
 );
 
 CREATE TABLE pesanan_notifikasi (

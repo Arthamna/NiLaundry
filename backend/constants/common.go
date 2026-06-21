@@ -19,6 +19,21 @@ const (
 	StatusPesananSelesai  = "selesai"
 	StatusPesananActive   = "active"
 
+	// Delivery-flow statuses (the order detail timeline). A pickup-flow order
+	// starts at "pickup"; a walk-in (drop-off) order starts at "processing".
+	StatusPesananPickup     = "pickup"
+	StatusPesananProcessing = "processing"
+	StatusPesananDelivery   = "delivery"
+	StatusPesananCompleted  = "completed"
+
+	// jenis_ambil: how the laundry reaches the branch.
+	JenisAmbilPickup = "pickup" // courier pickup
+	JenisAmbilWalkin = "walkin" // customer drops off
+
+	// jenis_antar: how the finished laundry gets back to the customer.
+	JenisAntarDelivery = "delivery" // courier delivery
+	JenisAntarWalkin   = "walkin"   // customer self pick-up
+
 	StatusPembayaranPending = "pending"
 	StatusPembayaranLunas   = "Lunas"
 
