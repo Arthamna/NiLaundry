@@ -1,11 +1,27 @@
 package constants
 
 const (
-	ROLE_ADMIN = "admin"
-	ROLE_USER  = "user"
+	// Subject types embedded in the JWT to disambiguate which table the
+	// subject_id refers to (pelanggan vs pengguna).
+	SubjectTypePelanggan = "pelanggan"
+	SubjectTypePengguna  = "pengguna"
 
-	STATUS_BORROWED = "borrowed"
-	STATUS_AVAILABLE = "available"
+	// Role values stored in the JWT claim and (for non-customer) in the
+	// `role` table.
+	RoleCustomer   = "customer"
+	RoleAdmin      = "admin"
+	RoleSuperAdmin = "superadmin"
 
-	JWT_EXPIRE_TIME_IN_MINS = 120
+	JWTExpireMinutes = 60 * 24
+
+	StatusPesananMenunggu = "Menunggu"
+	StatusPesananDiproses = "Diproses"
+	StatusPesananSelesai  = "selesai"
+	StatusPesananActive   = "active"
+
+	StatusPembayaranPending = "pending"
+	StatusPembayaranLunas   = "Lunas"
+
+	TipeDiskonPersen  = "persen"
+	TipeDiskonNominal = "nominal"
 )

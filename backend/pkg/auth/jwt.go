@@ -1,21 +1,29 @@
 package auth
 
 import (
-	"arthamna/rplLibrary/constants"
-	"arthamna/rplLibrary/internal/models"
+	"arthamna/NiLaundry/constants"
 	"errors"
-	"log"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// Claims carries who the caller is (SubjectID + SubjectType) and what role
+// they hold. SubjectType disambiguates which table SubjectID refers to:
+//   - SubjectTypePelanggan -> pelanggan.id_pelanggan
+//   - SubjectTypePengguna  -> pengguna.id_pengguna
+type Claims struct {
+	SubjectID   int    `json:"sub"`
+	SubjectType string `json:"type"`
+	Role        string `json:"role"`
+	jwt.RegisteredClaims
+}
+
 type JWTService interface {
-	GenerateToken(user *models.User) (string, error)
-	ValidateToken(token string) (*jwt.Token, error)
-	GetUserIDFromToken(token *jwt.Token) (string, error)
-	GetUserRoleFromToken(token *jwt.Token) (string, error)
+	GenerateForPelanggan(pelangganID int) (string, error)
+	GenerateForPengguna(penggunaID int, role string) (string, error)
+	ValidateToken(tokenString string) (*Claims, error)
 }
 
 type jwtService struct {
@@ -26,72 +34,62 @@ type jwtService struct {
 func NewJWTService() JWTService {
 	return &jwtService{
 		secretKey: getSecretKey(),
-		issuer:    "rpLibrary",
+		issuer:    "NiLaundry",
 	}
 }
 
 func getSecretKey() string {
-	secretKey := os.Getenv("JWT_SECRET_KEY")
-	if secretKey == "" {
-		secretKey = "Template"
+	secret := os.Getenv("JWT_SECRET_KEY")
+	if secret == "" {
+		secret = "NiLaundry-dev-secret"
 	}
-	return secretKey
+	return secret
 }
 
-type Claims struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"`
-	jwt.RegisteredClaims
+func (j *jwtService) sign(claims *Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(j.secretKey))
 }
 
-func (j *jwtService) GenerateToken(user *models.User) (string, error) {
-	claims := &Claims{
-		UserID: user.UserID,
-		Role:   user.Role,
+func (j *jwtService) GenerateForPelanggan(pelangganID int) (string, error) {
+	return j.sign(&Claims{
+		SubjectID:   pelangganID,
+		SubjectType: constants.SubjectTypePelanggan,
+		Role:        constants.RoleCustomer,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.issuer,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * constants.JWT_EXPIRE_TIME_IN_MINS)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * constants.JWTExpireMinutes)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tx, err := token.SignedString([]byte(j.secretKey))
-	if err != nil {
-		log.Println(err)
-	}
-	return tx, nil
-}
-
-func (j *jwtService) ValidateToken(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("invalid token signing method")
-		}
-		return []byte(j.secretKey), nil
 	})
 }
 
-func (j *jwtService) GetUserIDFromToken(token *jwt.Token) (string, error) {
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", errors.New("invalid token claims")
-	}
-	userID, ok := claims["user_id"].(string)
-	if !ok {
-		return "", errors.New("invalid user_id in token")
-	}
-	return userID, nil
+func (j *jwtService) GenerateForPengguna(penggunaID int, role string) (string, error) {
+	return j.sign(&Claims{
+		SubjectID:   penggunaID,
+		SubjectType: constants.SubjectTypePengguna,
+		Role:        role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    j.issuer,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * constants.JWTExpireMinutes)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	})
 }
 
-func (j *jwtService) GetUserRoleFromToken(token *jwt.Token) (string, error) {
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", errors.New("invalid token claims")
+func (j *jwtService) ValidateToken(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return []byte(j.secretKey), nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	role, ok := claims["role"].(string)
-	if !ok {
-		return "", errors.New("invalid role in token")
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid token")
 	}
-	return role, nil
+	return claims, nil
 }

@@ -27,8 +27,14 @@ export default function LoginForm() {
         }
         setIsSubmitting(true);
         try {
-            await authApi.login({ email: email.trim(), password });
-            router.push('/customer/dashboard');
+            const result = await authApi.login({ email: email.trim(), password });
+            if (result.subjectType === 'pelanggan') {
+                router.push('/customer/dashboard');
+            } else if (result.role === 'superadmin') {
+                router.push('/superadmin/dashboard');
+            } else {
+                router.push('/admin/dashboard');
+            }
         } catch (err: unknown) {
             setError(getApiErrorMessage(err));
             setIsSubmitting(false);

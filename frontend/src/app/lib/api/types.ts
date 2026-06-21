@@ -190,8 +190,41 @@ export interface RegisterInput {
     password: string;
 }
 
-/** Response from /auth/login and /auth/register: JWT plus the logged-in customer. */
-export interface AuthResponse {
+/** Subject types embedded in the unified login response. */
+export type SubjectType = 'pelanggan' | 'pengguna';
+
+/** Role values returned by /auth/login. */
+export type Role = 'customer' | 'admin' | 'superadmin';
+
+/**
+ * Backoffice user (admin / superadmin). Returned by /auth/login when the
+ * email was found in the `pengguna` table.
+ * - role = 'admin'      -> cabangId is the branch this admin manages
+ * - role = 'superadmin' -> cabangId is null (manages all branches)
+ */
+export interface Pengguna {
+    id: number;
+    nama: string;
+    email: string;
+    role: 'admin' | 'superadmin';
+    cabangId: number | null;
+}
+
+/** Response from POST /auth/register — pelanggan-only, since only customers can self-register. */
+export interface RegisterResponse {
     token: string;
     pelanggan: Pelanggan;
+}
+
+/**
+ * Response from POST /auth/login. The backend searches both `pelanggan` and
+ * `pengguna` tables; `subjectType` tells the frontend which one matched so
+ * the UI can route to the right dashboard.
+ */
+export interface UnifiedAuthResponse {
+    token: string;
+    subjectType: SubjectType;
+    role: Role;
+    pelanggan: Pelanggan | null;
+    pengguna: Pengguna | null;
 }

@@ -1,0 +1,61 @@
+info:
+  name: Login
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/admin/login"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "admin@nilaundry.com",
+        "password": "admin123"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: Success
+    request:
+      url: "{{BASE_URL}}/auth/admin/login"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "email": "admin@nilaundry.com",
+            "password": "admin123"
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-type
+          value: application/json; charset=utf-8
+        - name: date
+          value: Sun, 21 Jun 2026 08:51:03 GMT
+        - name: content-length
+          value: "336"
+      body:
+        type: json
+        data: |-
+          {
+            "success": true,
+            "data": {
+              "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInR5cGUiOiJwZW5nZ3VuYSIsInJvbGUiOiJhZG1pbiIsImlzcyI6Ik5pTGF1bmRyeSIsImV4cCI6MTc4MjExODI2MywiaWF0IjoxNzgyMDMxODYzfQ.8rTevkPU17qKd67YYUYruUz7QGrjMazcFtCadSySpF4",
+              "pengguna": {
+                "id": 2,
+                "nama": "Admin",
+                "email": "admin@nilaundry.com",
+                "role": "admin"
+              }
+            },
+            "error": null
+          }

@@ -1,0 +1,62 @@
+info:
+  name: Login
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/login"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "kanism489@gmail.com",
+        "password": "pass123"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: Success
+    request:
+      url: "{{BASE_URL}}/auth/login"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "email": "kanism489@gmail.com",
+            "password": "pass123"
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-type
+          value: application/json; charset=utf-8
+        - name: date
+          value: Sun, 21 Jun 2026 08:36:17 GMT
+        - name: content-length
+          value: "358"
+      body:
+        type: json
+        data: |-
+          {
+            "success": true,
+            "data": {
+              "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInR5cGUiOiJwZWxhbmdnYW4iLCJyb2xlIjoiY3VzdG9tZXIiLCJpc3MiOiJOaUxhdW5kcnkiLCJleHAiOjE3ODIxMTczNzcsImlhdCI6MTc4MjAzMDk3N30.N5uWuSGZflUU1_JcfwMcam5Q1X_iX4lvg-wZbqZeYEg",
+              "pelanggan": {
+                "id": 1,
+                "nama": "User1",
+                "email": "kanism489@gmail.com",
+                "noTelp": "08123",
+                "alamat": "Ya"
+              }
+            },
+            "error": null
+          }

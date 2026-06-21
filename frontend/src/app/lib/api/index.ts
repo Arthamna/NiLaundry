@@ -4,9 +4,14 @@ export * from './types';
 export { API_BASE_URL, ApiError, apiFetch, getApiErrorMessage } from './client';
 export {
     getToken,
+    getSubjectType,
+    getRole,
     getCurrentPelangganId,
     getCachedPelanggan,
+    getCachedPengguna,
+    getCachedProfile,
     setSession,
+    setPelangganSession,
     clearSession,
     isAuthenticated,
 } from './session';

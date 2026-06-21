@@ -1,82 +1,60 @@
 package routes
 
 import (
-	"arthamna/rplLibrary/internal/handlers"
-	"arthamna/rplLibrary/pkg/middleware"
+	"arthamna/NiLaundry/internal/handlers"
+	"arthamna/NiLaundry/pkg/auth"
+	"arthamna/NiLaundry/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, userController handlers.UserHandler, bookController handlers.BookHandler, categoryController handlers.CategoryHandler) {
-	
-	// auth
-	auth := r.Group("/auth")
+type Handlers struct {
+	Auth       handlers.AuthHandler
+	Pelanggan  handlers.PelangganHandler
+	Pesanan    handlers.PesananHandler
+	Ulasan     handlers.UlasanHandler
+	Voucher    handlers.VoucherHandler
+	Notifikasi handlers.NotifikasiHandler
+	Pembayaran handlers.PembayaranHandler
+}
+
+func SetupRoutes(r *gin.Engine, jwtService auth.JWTService, h Handlers) {
+	// Public auth endpoints. /auth/login is unified — searches pelanggan
+	// then pengguna, response carries subjectType so the frontend can route.
+	authGroup := r.Group("/auth")
 	{
-		auth.POST("/register", userController.Register)
-		auth.POST("/login", userController.Login)
-		auth.POST("/admin/register", userController.RegisterAdmin)
+		authGroup.POST("/register", h.Auth.Register)
+		authGroup.POST("/login", h.Auth.Login)
 	}
 
-	// user
-	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware())
+	// Customer protected endpoints
+	api := r.Group("/")
+	api.Use(middleware.Authenticate(jwtService), middleware.RequirePelanggan())
 	{
-		api.POST("/profile", userController.UploadPicture)
-		
-		// kinda confused, but let's say user dan admin punya endpoint tersendiri untuk bisa mengakses categories 
-		// sehingga user dapat melihat category, lalu juga mencari dan filtering dengan lebih mudah
-		
-		books := api.Group("/books")
+		me := api.Group("/pelanggan/me")
 		{
-			// borrow book
-			books.POST("/borrow", bookController.BorrowBook)
-			books.POST("/borrows", bookController.BorrowMultipleBook)
-
-			// filtering
-
-			// status = available / borrowed
-			books.GET("/status/:status", bookController.FindByStatus)
-
-			// categories, untuk mencari buku berdasarkan kategori
-			books.GET("/categories", categoryController.GetAllCategories)
-			books.GET("/category/:category", bookController.FindByCategory)
-
-			// searching : /books/search?q=harry
-			books.GET("/search", bookController.SearchBooks)
+			me.GET("", h.Pelanggan.GetMe)
+			me.PUT("", h.Pelanggan.UpdateMe)
 		}
 
-	}
-
-	// Admin 
-	admin := r.Group("/admin")
-	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
-	{
-		// book
-		books := admin.Group("/books")
+		owned := api.Group("/pelanggan/:id")
 		{
-			books.POST("/returned", bookController.SetMultipleReturnedBook)
-		}
-		
-		book := admin.Group("/book")
-		{
-			book.POST("", bookController.CreateBook)
-			book.GET("", bookController.GetAllBooks)
-			book.GET("/:id", bookController.GetBook)
-			book.PUT("/:id", bookController.UpdateBook)
-			book.DELETE("/:id", bookController.DeleteBook)
+			owned.GET("/pesanan", h.Pesanan.List)
+			owned.POST("/pesanan", h.Pesanan.Create)
+			owned.GET("/pesanan/subtotal", h.Pesanan.Subtotal)
+			owned.GET("/pesanan/:pesananId", h.Pesanan.GetDetail)
 
-			book.POST("/cover", bookController.UploadBookPicture)
-			book.POST("/returned", bookController.SetReturnedBook)
-		}
+			owned.GET("/ulasan", h.Ulasan.ListMine)
+			owned.GET("/ulasan/:pesananId", h.Ulasan.GetByPesanan)
+			owned.POST("/ulasan/:pesananId", h.Ulasan.Create)
 
-		// category
-		category := admin.Group("/category")
-		{
-			category.POST("", categoryController.CreateCategory)
-			category.GET("", categoryController.GetAllCategories)
-			category.GET("/:id", categoryController.GetCategory)
-			category.PUT("/:id", categoryController.UpdateCategory)
-			category.DELETE("/:id", categoryController.DeleteCategory)
+			owned.GET("/voucher", h.Voucher.List)
+			owned.GET("/voucher/hemat", h.Voucher.TotalHemat)
+			owned.POST("/voucher/klaim", h.Voucher.Claim)
+
+			owned.GET("/notifikasi", h.Notifikasi.List)
+
+			owned.POST("/pembayaran/konfirmasi", h.Pembayaran.Konfirmasi)
 		}
 	}
 }

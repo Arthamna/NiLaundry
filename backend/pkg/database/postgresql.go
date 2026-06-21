@@ -1,8 +1,6 @@
 package database
 
 import (
-	"arthamna/rplLibrary/internal/models"
-	// "arthamna/rplLibrary/pkg/database/migrations"
 	"fmt"
 	"log"
 	"os"
@@ -14,56 +12,37 @@ import (
 )
 
 func ConnectToPostgresql() *gorm.DB {
-    dbUSER := os.Getenv("DB_USER")
-    dbPASSWORD := os.Getenv("DB_PASS")
-    dbHOST := os.Getenv("DB_HOST")
-    dbPORT := os.Getenv("DB_PORT")
-    dbDBNAME := os.Getenv("DB_DBNAME")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASS")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_DBNAME")
 
-    dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=prefer",
-        dbHOST, dbUSER, dbPASSWORD, dbDBNAME, dbPORT)
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=prefer",
+		dbHost, dbUser, dbPass, dbName, dbPort)
 
-    newLogger := logger.New(
-        log.New(log.Writer(), "\r\n", log.LstdFlags),
-        logger.Config{
-            SlowThreshold: time.Second,
-            LogLevel:      logger.Info,
-            Colorful:      true,
-        },
-    )
+	newLogger := logger.New(
+		log.New(log.Writer(), "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold: time.Second,
+			LogLevel:      logger.Warn,
+			Colorful:      true,
+		},
+	)
 
-    db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-        Logger: newLogger,
-        DisableForeignKeyConstraintWhenMigrating: true,
-    })
-    if err != nil {
-        log.Fatal("Error connecting to the database:", err)
-    }
-
-    fmt.Println("Connected to PostgreSQL successfully!")
-
-    if err := AutoMigrateAll(db); err != nil {
-        log.Fatal(err)
-    }
-
-        return db
-}
-
-func AutoMigrateAll(db *gorm.DB) error {
-    // refresh table
-	// db.Migrator().DropConstraint(&models.Article{}, "fk_categories_articles")
-	// db.Migrator().DropConstraint(&models.Article{}, "fk_articles_author")
-	// db.Migrator().DropTable(&models.Category{}, &models.User{} , &models.Article{}) 
-	
-	if err := db.AutoMigrate(
-        &models.User{}, 
-        &models.Category{}, 
-        &models.Book{},
-        &models.BookBorrowing{},
-        &models.BookCategory{},
-    ); err != nil {
-		return err
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: newLogger})
+	if err != nil {
+		log.Fatal("Error connecting to the database:", err)
 	}
-	
-	return nil
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Error obtaining sql.DB:", err)
+	}
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	fmt.Println("Connected to PostgreSQL successfully!")
+	return db
 }
