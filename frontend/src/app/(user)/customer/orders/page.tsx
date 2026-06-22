@@ -97,7 +97,7 @@ export default function CustomerOrdersPage() {
                                     <OrderCard
                                         key={o.id}
                                         orderId={`#${o.id}`}
-                                        service="Pesanan Laundry"
+                                        service={o.ringkasanLayanan || 'Pesanan Laundry'}
                                         status={o.status}
                                         eta={formatEta(o)}
                                     />
@@ -113,7 +113,7 @@ export default function CustomerOrdersPage() {
                                     <OrderCard
                                         key={o.id}
                                         orderId={`#${o.id}`}
-                                        service="Pesanan Laundry"
+                                        service={o.ringkasanLayanan || 'Pesanan Laundry'}
                                         status={o.status}
                                         eta={formatEta(o)}
                                         isReviewed={reviewedIds.has(o.id)}

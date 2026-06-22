@@ -14,6 +14,10 @@ type VoucherResponse struct {
 	BerlakuHingga time.Time `json:"berlakuHingga"`
 	Kuota         int       `json:"kuota"`
 	Terpakai      int       `json:"terpakai"`
+	// UsedByMe is true when the logged-in customer has already applied this
+	// owned voucher to one of their orders. Only meaningful for the 'owned'
+	// scope; false otherwise.
+	UsedByMe bool `json:"usedByMe"`
 }
 
 type VoucherHematResponse struct {

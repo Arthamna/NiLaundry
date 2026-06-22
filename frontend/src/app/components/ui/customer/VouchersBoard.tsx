@@ -40,23 +40,20 @@ export default function VouchersBoard() {
         const request =
             pelangganId == null
                 ? Promise.reject(new Error('Sesi tidak ditemukan. Silakan masuk kembali.'))
-                : voucherApi.listVouchers(pelangganId, controller.signal);
+                : // 'owned' = vouchers this customer has claimed (voucher_pelanggan),
+                  // so a code redeemed via "Add Voucher" actually shows up here.
+                  voucherApi.listVouchers(pelangganId, 'owned', controller.signal);
 
         request
             .then((vouchers: Voucher[]) => {
                 const now = Date.now();
-                // "Used" has no per-customer flag in the schema (see CUSTOMER.md); we split on
-                // validity only — fully-claimed vouchers (terpakai >= kuota) count as Used.
+                const isExpired = (v: Voucher) => new Date(v.berlakuHingga).getTime() < now;
+                // Bucket owned vouchers: applied to an order => Used (regardless of
+                // expiry); otherwise past expiry => Expired, still valid => Active.
                 setGroups({
-                    Active: vouchers
-                        .filter((v) => new Date(v.berlakuHingga).getTime() >= now && v.terpakai < v.kuota)
-                        .map((v) => toVM(v, now)),
-                    Used: vouchers
-                        .filter((v) => new Date(v.berlakuHingga).getTime() >= now && v.terpakai >= v.kuota)
-                        .map((v) => toVM(v, now)),
-                    Expired: vouchers
-                        .filter((v) => new Date(v.berlakuHingga).getTime() < now)
-                        .map((v) => toVM(v, now)),
+                    Active: vouchers.filter((v) => !v.usedByMe && !isExpired(v)).map((v) => toVM(v, now)),
+                    Used: vouchers.filter((v) => v.usedByMe).map((v) => toVM(v, now)),
+                    Expired: vouchers.filter((v) => !v.usedByMe && isExpired(v)).map((v) => toVM(v, now)),
                 });
             })
             .catch((e) => {

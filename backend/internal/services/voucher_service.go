@@ -32,11 +32,17 @@ func NewVoucherService(r repositories.VoucherRepository) VoucherService {
 func (s *voucherService) List(ctx context.Context, pelangganID int, scope VoucherScope) ([]dtos.VoucherResponse, error) {
 	switch scope {
 	case VoucherScopeOwned:
-		rows, err := s.repo.ListOwned(ctx, pelangganID)
+		rows, err := s.repo.ListOwnedWithUsage(ctx, pelangganID)
 		if err != nil {
 			return nil, err
 		}
-		return dtos.ToVoucherResponseList(rows), nil
+		out := make([]dtos.VoucherResponse, 0, len(rows))
+		for i := range rows {
+			res := dtos.ToVoucherResponse(&rows[i].Voucher)
+			res.UsedByMe = rows[i].UsedByMe
+			out = append(out, res)
+		}
+		return out, nil
 	default:
 		rows, err := s.repo.ListAvailable(ctx, pelangganID)
 		if err != nil {

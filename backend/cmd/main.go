@@ -43,7 +43,7 @@ func main() {
 	// services
 	authSvc := services.NewAuthService(pelangganRepo, penggunaRepo, jwtService)
 	pelangganSvc := services.NewPelangganService(pelangganRepo)
-	pesananSvc := services.NewPesananService(pesananRepo, ulasanRepo, tarifRepo, pegawaiRepo)
+	pesananSvc := services.NewPesananService(pesananRepo, ulasanRepo, tarifRepo, pegawaiRepo, voucherRepo)
 	ulasanSvc := services.NewUlasanService(ulasanRepo, pesananRepo)
 	voucherSvc := services.NewVoucherService(voucherRepo)
 	notifSvc := services.NewNotifikasiService(notifRepo)

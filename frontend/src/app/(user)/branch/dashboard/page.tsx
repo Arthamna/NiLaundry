@@ -113,7 +113,7 @@ export default function BranchDashboardPage() {
 
     return (
         <>
-            <BranchTopBar title="Dashboard" branchName={`Branch #${cabangId ?? '-'}`} />
+            <BranchTopBar title="Dashboard" />
 
             <div className="flex w-full max-w-[1440px] flex-col gap-6 px-10 pt-10 pb-24">
                 <div className="flex items-end justify-between">

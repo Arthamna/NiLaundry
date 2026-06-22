@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { CalendarClock, ChevronDown, CircleDot, Save, User, X } from 'lucide-react';
-import type { OrderStatus } from '@/components/ui/branch/StatusBadge';
+import { STATUS_LABEL, type OrderStatus } from '@/components/ui/branch/StatusBadge';
 
 export interface DrawerItem {
     service: string;
@@ -131,7 +131,7 @@ export default function OrderStatusDrawer({
                                 <option value="">Select next status...</option>
                                 {statusOptions.map((s) => (
                                     <option key={s} value={s}>
-                                        {s}
+                                        {STATUS_LABEL[s]}
                                     </option>
                                 ))}
                             </select>

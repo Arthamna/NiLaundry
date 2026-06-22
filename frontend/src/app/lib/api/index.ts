@@ -13,6 +13,7 @@ export {
     setSession,
     setPelangganSession,
     getCurrentCabangId,
+    getCurrentCabangNama,
     clearSession,
     isAuthenticated,
 } from './session';

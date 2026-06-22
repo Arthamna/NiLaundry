@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Ticket, Plus } from 'lucide-react';
 
 interface Voucher {
+    id?: number;
     code: string;
     title: string;
     description: string;
@@ -13,7 +14,7 @@ interface Voucher {
 
 interface VouchersPanelProps {
     vouchers: Voucher[];
-    onUse?: (code: string) => void;
+    onUse?: (id: number) => void;
     onAdd?: () => void;
 }
 
@@ -61,7 +62,7 @@ export default function VouchersPanel({ vouchers, onUse, onAdd }: VouchersPanelP
                             <div className="flex items-center justify-between">
                                 <p className="text-[11px] leading-[15px] text-[#6e7977]">{v.expiresIn}</p>
                                 <button
-                                    onClick={() => onUse?.(v.code)}
+                                    onClick={() => v.id != null && onUse?.(v.id)}
                                     className={`rounded-lg px-4 py-2 text-[13px] leading-4 font-semibold tracking-[0.6px] text-white ${s.button}`}
                                     aria-label="Use Voucher"
                                 >

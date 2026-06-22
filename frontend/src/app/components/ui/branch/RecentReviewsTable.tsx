@@ -28,8 +28,8 @@ export default function RecentReviewsTable({ rows }: { rows: ReviewRow[] }) {
                 <h3 className="text-[20px] leading-7 font-semibold text-[#181c1c]">Recent Reviews</h3>
                 <button
                     type="button"
-                    className="text-[12px] leading-[18px] font-semibold tracking-[0.6px] text-[#005c55]"
-                >
+                    className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#005c55] hover:underline"
+                    onClick={() => {window.location.href = '/branch/reviews'}}>
                     View All
                 </button>
             </div>

@@ -5,22 +5,29 @@ import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { redeemVoucher } from '@/lib/vouchers';
 
-const USER_ID = 'current-user';
-
 export default function RedeemCodeDialog() {
     const router = useRouter();
     const [code, setCode] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
     const close = () => router.push('/customer/vouchers');
 
     const handleRedeem = async () => {
+        if (submitting || code.trim().length === 0) return;
         setSubmitting(true);
-        // TODO: surface the result message to the user once toast/notif UI exists.
-        await redeemVoucher(USER_ID, code);
+        setResult(null);
+        const res = await redeemVoucher('', code);
         setSubmitting(false);
-        close();
+        setResult({ ok: res.success, message: res.message });
+        // Only leave the dialog when the claim succeeded; the vouchers page
+        // re-fetches owned vouchers on mount, so the new code shows up there.
+        if (res.success) {
+            router.push('/customer/vouchers');
+        }
     };
+
+    const canSubmit = !submitting && code.trim().length > 0;
 
     return (
         <div
@@ -54,14 +61,28 @@ export default function RedeemCodeDialog() {
                 </div>
 
                 {/* Drawer Content */}
-                <div className="bg-[#f7faf8] p-[24px]">
+                <div className="flex flex-col gap-3 bg-[#f7faf8] p-[24px]">
                     <input
                         type="text"
                         value={code}
-                        onChange={(e) => setCode(e.target.value)}
+                        onChange={(e) => {
+                            setCode(e.target.value);
+                            if (result) setResult(null);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRedeem();
+                        }}
                         placeholder="XXXX-XXXX-XXXX"
                         className="w-full rounded-[6px] border border-[#bdc9c6] bg-white p-[13px] text-center text-[11px] leading-[16.5px] text-[#181c1c] placeholder:text-[#6e7977] focus:border-[#009689] focus:outline-none"
                     />
+                    {result && (
+                        <p
+                            role={result.ok ? 'status' : 'alert'}
+                            className={`text-[12px] leading-4 ${result.ok ? 'text-[#00776a]' : 'text-[#ba1a1a]'}`}
+                        >
+                            {result.message}
+                        </p>
+                    )}
                 </div>
 
                 {/* Drawer Footer (Actions) */}
@@ -76,10 +97,10 @@ export default function RedeemCodeDialog() {
                     <button
                         type="button"
                         onClick={handleRedeem}
-                        disabled={submitting}
-                        className="rounded-[8px] bg-[#005c55] px-[16px] pt-[8.5px] pb-[9.5px] text-[14px] leading-[20px] font-medium text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#004f49] disabled:opacity-60"
+                        disabled={!canSubmit}
+                        className="rounded-[8px] bg-[#005c55] px-[16px] pt-[8.5px] pb-[9.5px] text-[14px] leading-[20px] font-medium text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#004f49] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Redeem
+                        {submitting ? 'Redeeming…' : 'Redeem'}
                     </button>
                 </div>
             </div>

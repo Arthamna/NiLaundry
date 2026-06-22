@@ -9,10 +9,19 @@ import { apiFetch } from './client';
 import type {
     CreatePesananInput,
     ItemPesananInput,
+    KatalogCabang,
     Pesanan,
     PesananDetail,
     SubtotalPesanan,
 } from './types';
+
+/**
+ * GET /katalog — branches with their sellable services (tarif + layanan), used
+ * by the "create new order" form. Replaces the previously hardcoded catalog.
+ */
+export async function getKatalog(signal?: AbortSignal): Promise<KatalogCabang[]> {
+    return apiFetch<KatalogCabang[]>('/katalog', { signal });
+}
 
 /**
  * GET /pelanggan/{id}/pesanan — list a customer's orders.

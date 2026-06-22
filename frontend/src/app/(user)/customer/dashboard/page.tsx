@@ -59,12 +59,13 @@ interface DashboardView {
         progressFraction: number;
     } | null;
     activity: { id: string; icon: string; title: string; subtitle: string; time: string; unread?: boolean }[];
-    voucherCards: { code: string; title: string; description: string; expiresIn: string }[];
+    voucherCards: { id: number; code: string; title: string; description: string; expiresIn: string }[];
 }
 
 function buildView(orders: Pesanan[], vouchers: Voucher[], notifs: Notifikasi[], totalSaved: number): DashboardView {
     const now = Date.now();
-    const active = orders.filter((o) => o.status !== 'selesai' && o.status !== 'completed' && o.status !== 'dibatalkan' && o.status !== 'canceled').sort((a, b) => new Date(b.tanggalPesanan).getTime() - new Date(a.tanggalPesanan).getTime());
+    // Pesanan has no created-at column; id is monotonic, so sort newest-first by id.
+    const active = orders.filter((o) => o.status !== 'selesai' && o.status !== 'completed' && o.status !== 'dibatalkan' && o.status !== 'canceled').sort((a, b) => b.id - a.id);
     const completed = orders.filter((o) => o.status === 'selesai' || o.status === 'completed');
     const first = active[0];
 
@@ -128,11 +129,12 @@ function buildView(orders: Pesanan[], vouchers: Voucher[], notifs: Notifikasi[],
     }
 
     const voucherCards = vouchers
-        .filter((v) => new Date(v.berlakuHingga).getTime() >= now)
+        .filter((v) => !v.usedByMe && new Date(v.berlakuHingga).getTime() >= now)
         .slice(0, 3)
         .map((v) => {
             const ms = new Date(v.berlakuHingga).getTime() - now;
             return {
+                id: v.id,
                 code: v.kode,
                 title: v.tipeDiskon === 'persen' ? `${v.nilaiDiskon}% Discount` : `${idr(v.nilaiDiskon)} Off`,
                 description: `Min. belanja ${idr(v.minPembelian)}`,
@@ -171,7 +173,7 @@ export default function CustomerDashboardPage() {
                 ? Promise.reject(new Error('Sesi tidak ditemukan. Silakan masuk kembali.'))
                 : Promise.all([
                       pesananApi.listPesanan(pelangganId, undefined, controller.signal),
-                      voucherApi.listVouchers(pelangganId, controller.signal),
+                      voucherApi.listVouchers(pelangganId, 'owned', controller.signal),
                       notifikasiApi.listNotifikasi(pelangganId, controller.signal),
                       voucherApi.getTotalHemat(pelangganId, controller.signal),
                   ]);
@@ -220,7 +222,10 @@ export default function CustomerDashboardPage() {
                             <RecentActivity items={view.activity} onViewAll={() => router.push('/customer/inbox')} />
                         </div>
                         <div className="col-span-4 flex flex-col gap-6">
-                            <VouchersPanel vouchers={view.voucherCards} />
+                            <VouchersPanel
+                                vouchers={view.voucherCards}
+                                onUse={(id) => router.push(`/customer/orders/new?voucher=${id}`)}
+                            />
                             <QuickActions onPlaceOrder={() => router.push('/customer/orders/new')} />
                         </div>
                     </div>

@@ -8,9 +8,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// OwnedVoucherRow is a claimed voucher plus whether the customer has already
+// applied it to one of their orders (used).
+type OwnedVoucherRow struct {
+	models.Voucher
+	UsedByMe bool `gorm:"column:used_by_me"`
+}
+
 type VoucherRepository interface {
 	ListAvailable(ctx context.Context, pelangganID int) ([]models.Voucher, error)
 	ListOwned(ctx context.Context, pelangganID int) ([]models.Voucher, error)
+	// ListOwnedWithUsage returns claimed vouchers tagged with a per-customer
+	// "used" flag (true when applied to any of the customer's orders).
+	ListOwnedWithUsage(ctx context.Context, pelangganID int) ([]OwnedVoucherRow, error)
 	FindByID(ctx context.Context, id int) (*models.Voucher, error)
 	FindByKode(ctx context.Context, kode string) (*models.Voucher, error)
 	TotalHemat(ctx context.Context, pelangganID int) (float64, error)
@@ -47,6 +57,33 @@ func (r *voucherRepo) ListOwned(ctx context.Context, pelangganID int) ([]models.
 		Order("voucher.id_voucher DESC").
 		Find(&rows).Error
 	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *voucherRepo) ListOwnedWithUsage(ctx context.Context, pelangganID int) ([]OwnedVoucherRow, error) {
+	const q = `
+		SELECT
+			v.id_voucher,
+			v.kode_voucher,
+			v.tipe_diskon_voucher,
+			v.nilai_diskon_voucher,
+			v.min_pembelian_voucher,
+			v.berlaku_hingga_voucher,
+			v.kuota_voucher,
+			v.terpakai_voucher,
+			EXISTS (
+				SELECT 1 FROM pesanan p
+				WHERE p.pelanggan_id_pelanggan = vp.pelanggan_id_pelanggan
+				  AND p.voucher_id_voucher = v.id_voucher
+			) AS used_by_me
+		FROM voucher v
+		JOIN voucher_pelanggan vp ON vp.voucher_id_voucher = v.id_voucher
+		WHERE vp.pelanggan_id_pelanggan = ?
+		ORDER BY v.id_voucher DESC`
+	var rows []OwnedVoucherRow
+	if err := r.db.WithContext(ctx).Raw(q, pelangganID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

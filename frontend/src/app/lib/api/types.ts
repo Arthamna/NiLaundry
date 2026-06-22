@@ -48,6 +48,7 @@ export interface Voucher {
     berlakuHingga: string; // berlaku_hingga_voucher (ISO timestamp)
     kuota: number; // kuota_voucher
     terpakai: number; // terpakai_voucher
+    usedByMe?: boolean; // owned scope only: customer already applied it to an order
 }
 
 /** Result of GET /pelanggan/{id}/voucher/hemat (Function: HitungTotalHematVoucher). */
@@ -78,6 +79,8 @@ export interface Tarif {
 //                      pesanan_id_pesanan, tarif_id_tarif)
 export interface ItemPesanan {
     id: number; // id_item_pesanan
+    layananNama: string; // layanan.nama_layanan (joined; '' if not embedded)
+    satuan: string; // layanan.satuan_layanan (joined)
     kuantitas: number; // kuantitas_satuan_item_pesanan
     subtotal: number; // subtotal_pesanan
     catatan: string | null; // catatan_item_pesanan
@@ -127,12 +130,31 @@ export interface Pesanan {
     pegawaiId: number; // pegawai_id_pegawai
     jenisAmbil: JenisAmbil; // jenis_ambil
     jenisAntar: JenisAntar; // jenis_antar
+    ringkasanLayanan: string; // distinct layanan names joined (list/detail); '' if not embedded
+}
+
+// --- katalog (create-new-order branch + service catalog) ---------------------
+// GET /katalog — branches with their sellable services (tarif joined to layanan).
+export interface KatalogService {
+    tarifId: number; // id_tarif
+    layananId: number; // id_layanan
+    namaLayanan: string; // nama_layanan
+    satuan: string; // satuan_layanan
+    hargaPerSatuan: number; // harga_per_satuan
+}
+
+export interface KatalogCabang {
+    cabangId: number; // id_cabang
+    nama: string; // nama_cabang
+    alamat: string; // alamat_cabang
+    services: KatalogService[];
 }
 
 /** Order detail = pesanan + its line items + optional review (ulasan). */
 export interface PesananDetail extends Pesanan {
     items: ItemPesanan[];
     ulasan: Ulasan | null;
+    voucher: Voucher | null; // the applied voucher (when voucherId is set)
 }
 
 /**
@@ -232,6 +254,7 @@ export interface Pengguna {
     email: string;
     role: 'admin' | 'superadmin';
     cabangId: number | null;
+    cabangNama: string | null; // nama_cabang of the admin's branch; null for superadmin
 }
 
 /** Response from POST /auth/register — pelanggan-only, since only customers can self-register. */

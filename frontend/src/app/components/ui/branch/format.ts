@@ -71,10 +71,10 @@ export function formatEstFinish(iso: string): { label: string; isOverdue: boolea
 }
 
 /**
- * Map a backend status string to the OrderStatus display enum used by
- * StatusBadge. Backend may emit Indonesian ('selesai', 'diproses', 'diambil',
- * 'baru') or English values; we map both. Unknown values fall back to
- * 'Processing' to avoid runtime errors.
+ * Normalize a backend status string to the canonical OrderStatus the frontend
+ * stores (lowercase English, identical to pesanan.status_pesanan). Legacy
+ * Indonesian values ('selesai', 'diproses', 'diambil', 'baru') are still
+ * accepted as aliases; unknown values fall back to 'processing'.
  */
 export function mapOrderStatus(raw: string): OrderStatus {
     const s = raw.trim().toLowerCase();
@@ -82,31 +82,26 @@ export function mapOrderStatus(raw: string): OrderStatus {
         case 'pickup':
         case 'baru':
         case 'menunggu':
-            return 'Pickup';
+            return 'pickup';
         case 'processing':
         case 'diproses':
-            return 'Processing';
+            return 'processing';
         case 'delivery':
         case 'diambil':
-            return 'Delivery';
+            return 'delivery';
         case 'completed':
         case 'selesai':
-            return 'Completed';
+            return 'completed';
         default:
-            return 'Processing';
+            return 'processing';
     }
 }
 
-/** Inverse map for client → server (when admin updates status from drawer). */
+/**
+ * Client → server status value. Now an identity passthrough: OrderStatus is
+ * already the canonical value stored in pesanan.status_pesanan. Kept as a
+ * named seam so call sites stay explicit about crossing the wire boundary.
+ */
 export function uiStatusToBackend(ui: OrderStatus): string {
-    switch (ui) {
-        case 'Pickup':
-            return 'baru';
-        case 'Processing':
-            return 'diproses';
-        case 'Delivery':
-            return 'diambil';
-        case 'Completed':
-            return 'selesai';
-    }
+    return ui;
 }

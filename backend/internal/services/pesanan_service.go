@@ -8,6 +8,7 @@ import (
 	"arthamna/NiLaundry/pkg/common"
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,6 +19,7 @@ type PesananService interface {
 	GetDetail(ctx context.Context, pelangganID, pesananID int) (*dtos.PesananDetailResponse, error)
 	Subtotal(ctx context.Context, items []dtos.ItemPesananInput) (*dtos.SubtotalResponse, error)
 	Create(ctx context.Context, pelangganID int, req dtos.CreatePesananRequest) (*dtos.PesananResponse, error)
+	Katalog(ctx context.Context) ([]dtos.KatalogCabangResponse, error)
 }
 
 type pesananService struct {
@@ -25,6 +27,7 @@ type pesananService struct {
 	ulasanRepo  repositories.UlasanRepository
 	tarifRepo   repositories.TarifRepository
 	pegawaiRepo repositories.PegawaiRepository
+	voucherRepo repositories.VoucherRepository
 }
 
 func NewPesananService(
@@ -32,12 +35,14 @@ func NewPesananService(
 	ulasanRepo repositories.UlasanRepository,
 	tarifRepo repositories.TarifRepository,
 	pegawaiRepo repositories.PegawaiRepository,
+	voucherRepo repositories.VoucherRepository,
 ) PesananService {
 	return &pesananService{
 		pesananRepo: pesananRepo,
 		ulasanRepo:  ulasanRepo,
 		tarifRepo:   tarifRepo,
 		pegawaiRepo: pegawaiRepo,
+		voucherRepo: voucherRepo,
 	}
 }
 
@@ -54,7 +59,22 @@ func (s *pesananService) List(ctx context.Context, pelangganID int, statusFilter
 	if err != nil {
 		return nil, err
 	}
-	return dtos.ToPesananResponseList(rows), nil
+	resp := dtos.ToPesananResponseList(rows)
+
+	// Attach a service-name summary per order so the order cards show the real
+	// layanan instead of a generic placeholder.
+	ids := make([]int, 0, len(resp))
+	for _, r := range resp {
+		ids = append(ids, r.ID)
+	}
+	summaries, err := s.pesananRepo.ServiceSummaryByPesanan(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range resp {
+		resp[i].RingkasanLayanan = summaries[resp[i].ID]
+	}
+	return resp, nil
 }
 
 func (s *pesananService) GetDetail(ctx context.Context, pelangganID, pesananID int) (*dtos.PesananDetailResponse, error) {
@@ -65,7 +85,7 @@ func (s *pesananService) GetDetail(ctx context.Context, pelangganID, pesananID i
 	if p == nil {
 		return nil, common.NewAppError(http.StatusNotFound, "pesanan not found")
 	}
-	items, err := s.pesananRepo.ListItems(ctx, pesananID)
+	items, err := s.pesananRepo.ListItemsWithLayanan(ctx, pesananID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +93,78 @@ func (s *pesananService) GetDetail(ctx context.Context, pelangganID, pesananID i
 	if err != nil {
 		return nil, err
 	}
+	base := dtos.ToPesananResponse(p)
+	itemResp := make([]dtos.ItemPesananResponse, 0, len(items))
+	names := make([]string, 0, len(items))
+	seen := make(map[string]bool)
+	for _, it := range items {
+		itemResp = append(itemResp, dtos.ItemPesananResponse{
+			ID:          it.IDItemPesanan,
+			LayananNama: it.NamaLayanan,
+			Satuan:      it.SatuanLayanan,
+			Kuantitas:   it.Kuantitas,
+			Subtotal:    it.Subtotal,
+			Catatan:     it.Catatan,
+			PesananID:   it.PesananID,
+			TarifID:     it.TarifID,
+		})
+		if !seen[it.NamaLayanan] {
+			seen[it.NamaLayanan] = true
+			names = append(names, it.NamaLayanan)
+		}
+	}
+	base.RingkasanLayanan = strings.Join(names, ", ")
+
+	// Attach the applied voucher (if any) so the detail summary can show the
+	// discount line.
+	var voucherResp *dtos.VoucherResponse
+	if p.VoucherIDVoucher != nil {
+		v, err := s.voucherRepo.FindByID(ctx, *p.VoucherIDVoucher)
+		if err != nil {
+			return nil, err
+		}
+		if v != nil {
+			r := dtos.ToVoucherResponse(v)
+			voucherResp = &r
+		}
+	}
+
 	return &dtos.PesananDetailResponse{
-		PesananResponse: dtos.ToPesananResponse(p),
-		Items:           dtos.ToItemPesananResponseList(items),
+		PesananResponse: base,
+		Items:           itemResp,
 		Ulasan:          dtos.ToUlasanResponsePtr(ulasan),
+		Voucher:         voucherResp,
 	}, nil
+}
+
+func (s *pesananService) Katalog(ctx context.Context) ([]dtos.KatalogCabangResponse, error) {
+	rows, err := s.tarifRepo.ListKatalog(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dtos.KatalogCabangResponse, 0)
+	indexByCabang := make(map[int]int)
+	for _, r := range rows {
+		idx, ok := indexByCabang[r.CabangID]
+		if !ok {
+			out = append(out, dtos.KatalogCabangResponse{
+				CabangID: r.CabangID,
+				Nama:     r.NamaCabang,
+				Alamat:   r.AlamatCabang,
+				Services: []dtos.KatalogServiceResponse{},
+			})
+			idx = len(out) - 1
+			indexByCabang[r.CabangID] = idx
+		}
+		out[idx].Services = append(out[idx].Services, dtos.KatalogServiceResponse{
+			TarifID:        r.TarifID,
+			LayananID:      r.LayananID,
+			NamaLayanan:    r.NamaLayanan,
+			Satuan:         r.SatuanLayanan,
+			HargaPerSatuan: r.HargaPerSatuan,
+		})
+	}
+	return out, nil
 }
 
 func (s *pesananService) Subtotal(ctx context.Context, items []dtos.ItemPesananInput) (*dtos.SubtotalResponse, error) {

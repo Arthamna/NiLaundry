@@ -40,11 +40,14 @@ export default function DashboardHeader(props: DashboardHeaderProps) {
 
         const controller = new AbortController();
         voucherApi
-            .listVouchers(pelangganId, controller.signal)
+            // 'owned' so the badge matches the Vouchers page "Active" tab.
+            .listVouchers(pelangganId, 'owned', controller.signal)
             .then((vouchers) => {
                 const now = Date.now();
-                const valid = vouchers.filter((v) => new Date(v.berlakuHingga).getTime() >= now);
-                setActiveVouchers(valid.length);
+                const active = vouchers.filter(
+                    (v) => !v.usedByMe && new Date(v.berlakuHingga).getTime() >= now,
+                );
+                setActiveVouchers(active.length);
             })
             .catch(() => {
                 /* header badge is non-critical; ignore fetch errors */

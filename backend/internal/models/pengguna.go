@@ -8,6 +8,7 @@ type Pengguna struct {
 	RoleIDRole             int    `gorm:"column:role_id_role"`
 	CabangLaundryIDCabang  *int   `gorm:"column:cabang_laundry_id_cabang"`
 	Role                   *Role  `gorm:"foreignKey:RoleIDRole;references:IDRole"`
+	CabangLaundry          *CabangLaundry `gorm:"foreignKey:CabangLaundryIDCabang;references:IDCabang"`
 }
 
 func (Pengguna) TableName() string { return "pengguna" }

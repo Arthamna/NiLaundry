@@ -19,8 +19,19 @@ const METHODS: PaymentMethod[] = [
     { id: 'ovo', label: 'OVO', src: '/payment/ovo.png', width: 162, height: 51, imgClass: 'h-[30px]' },
 ];
 
-export default function PaymentMethods() {
-    const [selected, setSelected] = useState('qris');
+interface PaymentMethodsProps {
+    /** Controlled selected method id. When omitted the component manages its own. */
+    value?: string;
+    onChange?: (id: string) => void;
+}
+
+export default function PaymentMethods({ value, onChange }: PaymentMethodsProps = {}) {
+    const [internal, setInternal] = useState('qris');
+    const selected = value ?? internal;
+    const setSelected = (id: string) => {
+        if (value === undefined) setInternal(id);
+        onChange?.(id);
+    };
 
     return (
         <div className="flex w-full flex-col items-center justify-center">

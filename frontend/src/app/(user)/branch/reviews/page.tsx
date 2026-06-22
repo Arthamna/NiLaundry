@@ -140,7 +140,7 @@ export default function BranchReviewsPage() {
 
     return (
         <>
-            <BranchTopBar title="Reviews" branchName={`Branch #${cabangId ?? '-'}`} />
+            <BranchTopBar title="Reviews" />
 
             <div className="flex w-full flex-col gap-6 px-10 pt-10 pb-10">
                 <div className="flex flex-col gap-1">

@@ -14,53 +14,66 @@ export interface OrderRow {
     status: OrderStatus;
 }
 
+const COL = {
+    orderId: 'basis-0 grow min-w-[140px]',
+    customer: 'basis-0 grow-[2] min-w-[200px]',
+    est: 'basis-0 grow min-w-[140px]',
+    status: 'basis-0 grow min-w-[120px]',
+};
+
 export default function RecentOrdersTable({ rows }: { rows: OrderRow[] }) {
     return (
-        <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white p-px shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-            {/* Card header */}
-            <div className="flex w-full items-center justify-between border-b border-[#e0e3e1] bg-white px-6 pt-6 pb-[25px]">
+        <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+            <div className="flex w-full items-center justify-between border-b border-[#e0e3e1] bg-white px-6 py-5">
                 <h3 className="text-[20px] leading-7 font-semibold text-[#181c1c]">Recent Orders</h3>
                 <button
                     type="button"
-                    className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#005c55]"
-                >
+                    className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#005c55] hover:underline"
+                    onClick={() => {window.location.href = '/branch/orders'}}>
                     View All
                 </button>
             </div>
 
-            {/* Table */}
             <div className="w-full overflow-auto">
-                {/* Header row */}
-                <div className="flex w-full justify-center border-b border-[#bdc9c6] bg-[#f1f4f3]">
-                    <HeaderCell width="w-[256px]">Order ID</HeaderCell>
-                    <HeaderCell width="w-[256px]">Customer</HeaderCell>
-                    <HeaderCell width="w-[200px]">Est. Finish</HeaderCell>
-                    <HeaderCell width="w-[144px]">Status</HeaderCell>
+                <div className="flex w-full border-b border-[#bdc9c6] bg-[#f1f4f3]">
+                    <HeaderCell className={COL.orderId}>Order ID</HeaderCell>
+                    <HeaderCell className={COL.customer}>Customer</HeaderCell>
+                    <HeaderCell className={COL.est}>Est. Finish</HeaderCell>
+                    <HeaderCell className={COL.status}>Status</HeaderCell>
                 </div>
 
-                {/* Body */}
                 <div className="flex w-full flex-col">
+                    {rows.length === 0 && (
+                        <div className="flex w-full justify-center py-10 text-[14px] text-[#3e4947]">
+                            Belum ada pesanan.
+                        </div>
+                    )}
                     {rows.map((row) => (
-                        <div key={row.id} className="flex w-full justify-center border-b border-[#e0e3e1]">
-                            <div className="flex w-[256px] flex-col justify-center px-4 pt-3 pb-[13px]">
+                        <div
+                            key={row.id}
+                            className="flex w-full items-center border-b border-[#e0e3e1] last:border-b-0"
+                        >
+                            <div className={`flex items-center px-6 py-4 ${COL.orderId}`}>
                                 <span className="text-[14px] leading-5 font-medium text-[#181c1c]">
                                     {row.orderId}
                                 </span>
                             </div>
-                            <div className="flex w-[256px] items-center gap-2 pl-4">
+                            <div className={`flex items-center gap-3 px-6 py-4 ${COL.customer}`}>
                                 <div
-                                    className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] leading-4 font-semibold tracking-[0.6px] ${AVATAR_TONES[row.avatarTone]}`}
+                                    className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] leading-4 font-semibold tracking-[0.6px] ${AVATAR_TONES[row.avatarTone]}`}
                                 >
                                     {row.initials}
                                 </div>
-                                <div>
-                                    <p className="text-[14px] leading-5 font-medium text-[#181c1c]">
+                                <div className="min-w-0">
+                                    <p className="truncate text-[14px] leading-5 font-medium text-[#181c1c]">
                                         {row.customerName}
                                     </p>
-                                    <p className="text-[12px] leading-5 text-[#3e4947]">{row.customerPhone}</p>
+                                    <p className="truncate text-[12px] leading-5 text-[#3e4947]">
+                                        {row.customerPhone}
+                                    </p>
                                 </div>
                             </div>
-                            <div className="flex w-[200px] flex-col px-4 pt-[22px] pb-[23px]">
+                            <div className={`flex items-center px-6 py-4 ${COL.est}`}>
                                 <span
                                     className={
                                         row.isOverdue
@@ -71,7 +84,7 @@ export default function RecentOrdersTable({ rows }: { rows: OrderRow[] }) {
                                     {row.estFinish}
                                 </span>
                             </div>
-                            <div className="flex w-[144px] items-start px-4 py-[21.5px]">
+                            <div className={`flex items-center px-6 py-4 ${COL.status}`}>
                                 <StatusBadge status={row.status} />
                             </div>
                         </div>
@@ -82,10 +95,12 @@ export default function RecentOrdersTable({ rows }: { rows: OrderRow[] }) {
     );
 }
 
-function HeaderCell({ width, children }: { width: string; children: React.ReactNode }) {
+function HeaderCell({ className, children }: { className: string; children: React.ReactNode }) {
     return (
-        <div className={`flex ${width} flex-col px-4 py-3`}>
-            <span className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#3e4947]">{children}</span>
+        <div className={`flex items-center px-6 py-3 ${className}`}>
+            <span className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#3e4947] uppercase">
+                {children}
+            </span>
         </div>
     );
 }

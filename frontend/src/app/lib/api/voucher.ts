@@ -7,16 +7,22 @@
 import { apiFetch } from './client';
 import type { Voucher, VoucherHemat } from './types';
 
+/** Which set of vouchers to list. Maps to the backend `?scope=` query. */
+export type VoucherScope = 'available' | 'owned';
+
 /**
- * GET /pelanggan/{id}/voucher — vouchers belonging to / available to the customer.
- * (On Home this is the set of usable, not-yet-used vouchers; on the Voucher and
- * Payment pages it is the customer's owned vouchers. Same endpoint either way.)
+ * GET /pelanggan/{id}/voucher — vouchers for the customer.
+ *  - 'available' (default): claimable vouchers (valid, quota left, not yet used).
+ *  - 'owned': vouchers the customer has already claimed (voucher_pelanggan),
+ *    used by "My Vouchers" and the payment picker.
  */
 export async function listVouchers(
     pelangganId: number,
+    scope: VoucherScope = 'available',
     signal?: AbortSignal,
 ): Promise<Voucher[]> {
-    return apiFetch<Voucher[]>(`/pelanggan/${pelangganId}/voucher`, { signal });
+    const q = scope === 'owned' ? '?scope=owned' : '';
+    return apiFetch<Voucher[]>(`/pelanggan/${pelangganId}/voucher${q}`, { signal });
 }
 
 /** GET /pelanggan/{id}/voucher/hemat — total discount value already used. */

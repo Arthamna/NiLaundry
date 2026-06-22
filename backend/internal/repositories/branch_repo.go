@@ -180,7 +180,7 @@ func (r *branchRepo) TodaysOrderAndRevenue(ctx context.Context, cabangID int) (i
 		JOIN pesanan p ON p.id_pesanan = b.pesanan_id_pesanan
 		JOIN pegawai g ON g.id_pegawai = p.pegawai_id_pegawai
 		WHERE g.cabang_laundry_id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'
+		  AND LOWER(b.status_pembayaran) = 'lunas'
 		  AND b.waktu_pembayaran::date = CURRENT_DATE`
 
 	var out struct {
@@ -256,10 +256,16 @@ func (r *branchRepo) ListOrders(ctx context.Context, cabangID int, params ListOr
 func orderBySort(sort string) string {
 	// Whitelist sort to prevent injection. Default: newest first.
 	switch sort {
+	case "id_pesanan asc":
+		return "p.id_pesanan ASC"
+	case "id_pesanan desc":
+		return "p.id_pesanan DESC"
 	case "estimasi_selesai_pesanan asc":
 		return "p.estimasi_selesai_pesanan ASC"
 	case "estimasi_selesai_pesanan desc":
 		return "p.estimasi_selesai_pesanan DESC"
+	case "total_harga_pesanan asc":
+		return "p.total_harga_pesanan ASC"
 	case "total_harga_pesanan desc":
 		return "p.total_harga_pesanan DESC"
 	default:
@@ -286,7 +292,7 @@ func (r *branchRepo) ListRecentPayments(ctx context.Context, cabangID, limit int
 		JOIN pegawai g   ON g.id_pegawai = p.pegawai_id_pegawai
 		JOIN pelanggan pl ON pl.id_pelanggan = p.pelanggan_id_pelanggan
 		WHERE g.cabang_laundry_id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'
+		  AND LOWER(b.status_pembayaran) = 'lunas'
 		ORDER BY b.id_pembayaran DESC
 		LIMIT ?`
 
@@ -541,8 +547,10 @@ func (r *branchRepo) UpdateOrderDetail(ctx context.Context, args UpdateOrderDeta
 			return err
 		}
 
-		// 3. Notify on completion
-		if args.Status != nil && *args.Status == "selesai" && args.NotifyOnSelesai {
+		// 3. Notify on completion. The canonical completion status is
+		// 'completed' (see pesanan seed + customer flow); 'selesai' is accepted
+		// as a legacy alias so older rows still trigger the notification.
+		if args.Status != nil && (*args.Status == "completed" || *args.Status == "selesai") && args.NotifyOnSelesai {
 			var pelangganID int
 			if err := tx.Raw(`SELECT pelanggan_id_pelanggan FROM pesanan WHERE id_pesanan = ?`, args.PesananID).
 				Scan(&pelangganID).Error; err != nil {
@@ -586,7 +594,7 @@ func (r *branchRepo) PaymentByCustomer(ctx context.Context, cabangID, limit, off
 		JOIN pelanggan pl ON pl.id_pelanggan = p.pelanggan_id_pelanggan
 		JOIN pegawai pg  ON pg.id_pegawai = p.pegawai_id_pegawai
 		WHERE pg.cabang_laundry_id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'
+		  AND LOWER(b.status_pembayaran) = 'lunas'
 		GROUP BY pl.id_pelanggan, pl.nama_pelanggan
 		ORDER BY total_payment DESC, pl.nama_pelanggan ASC
 		LIMIT ? OFFSET ?`
@@ -616,7 +624,7 @@ func (r *branchRepo) PaymentMethodChart(ctx context.Context, cabangID int) ([]Br
 			JOIN pesanan p  ON p.id_pesanan = b.pesanan_id_pesanan
 			JOIN pegawai pg ON pg.id_pegawai = p.pegawai_id_pegawai
 			WHERE pg.cabang_laundry_id_cabang = ?
-			  AND b.status_pembayaran = 'Lunas'
+			  AND LOWER(b.status_pembayaran) = 'lunas'
 		)
 		SELECT
 			b.metode_pembayaran AS metode,
@@ -629,7 +637,7 @@ func (r *branchRepo) PaymentMethodChart(ctx context.Context, cabangID int) ([]Br
 		JOIN pesanan p  ON p.id_pesanan = b.pesanan_id_pesanan
 		JOIN pegawai pg ON pg.id_pegawai = p.pegawai_id_pegawai
 		WHERE pg.cabang_laundry_id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'
+		  AND LOWER(b.status_pembayaran) = 'lunas'
 		GROUP BY b.metode_pembayaran
 		ORDER BY total_entries DESC`
 
@@ -655,7 +663,7 @@ func (r *branchRepo) PaymentMethodTotal(ctx context.Context, cabangID int) (floa
 		JOIN pesanan p  ON p.id_pesanan = b.pesanan_id_pesanan
 		JOIN pegawai pg ON pg.id_pegawai = p.pegawai_id_pegawai
 		WHERE pg.cabang_laundry_id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'`
+		  AND LOWER(b.status_pembayaran) = 'lunas'`
 	var out float64
 	if err := r.db.WithContext(ctx).Raw(q, cabangID).Scan(&out).Error; err != nil {
 		return 0, err
@@ -670,7 +678,7 @@ func (r *branchRepo) PaymentMethodAverage(ctx context.Context, cabangID int) (fl
 		JOIN pesanan p  ON p.id_pesanan = b.pesanan_id_pesanan
 		JOIN pegawai pg ON pg.id_pegawai = p.pegawai_id_pegawai
 		WHERE pg.cabang_laundry_id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'`
+		  AND LOWER(b.status_pembayaran) = 'lunas'`
 	var out float64
 	if err := r.db.WithContext(ctx).Raw(q, cabangID).Scan(&out).Error; err != nil {
 		return 0, err

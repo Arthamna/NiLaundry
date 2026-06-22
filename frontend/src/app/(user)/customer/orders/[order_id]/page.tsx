@@ -138,12 +138,21 @@ function OrderDetailInner() {
 
     const isCompleted = detail.status === 'completed' || detail.status === 'selesai';
 
-    // `layanan_id`→name isn't embedded by getPesanan yet (CUSTOMER.md gap #3), so each
-    // line is labelled neutrally by its tarif until the join is added server-side.
+    // getPesanan embeds each line's layanan name + unit (joined via tarif).
     const serviceLines: ServiceLine[] = detail.items.map((it) => ({
-        label: `Layanan (tarif #${it.tarifId}) × ${it.kuantitas}`,
+        label: `${it.layananNama || `Tarif #${it.tarifId}`} × ${it.kuantitas}${it.satuan ? ` ${it.satuan}` : ''}`,
         value: formatRp(it.subtotal),
     }));
+
+    const serviceTitle = detail.ringkasanLayanan || 'Pesanan Laundry';
+
+    // When a voucher was applied at payment, the order total was reduced; show the
+    // discount (sum of item subtotals − final total) as a voucher line.
+    const itemsSum = detail.items.reduce((sum, it) => sum + it.subtotal, 0);
+    const voucherDiscount = detail.voucher ? Math.max(0, itemsSum - detail.totalHarga) : 0;
+    const voucherLine: ServiceLine | undefined = detail.voucher
+        ? { label: `Voucher ${detail.voucher.kode}`, value: `- ${formatRp(voucherDiscount)}` }
+        : undefined;
 
     return (
         <div className="flex flex-col gap-[50px]">
@@ -154,13 +163,14 @@ function OrderDetailInner() {
 
                 <OrderTimeline
                     orderId={`#${detail.id}`}
-                    service="Pesanan Laundry"
+                    service={serviceTitle}
                     status={detail.status}
                     steps={buildTimeline(detail.jenisAmbil, detail.jenisAntar, detail.status, detail.estimasiSelesai)}
                 />
 
                 <ServicesSummary
                     items={serviceLines.length > 0 ? serviceLines : [{ label: 'Tidak ada item', value: '—' }]}
+                    voucher={voucherLine}
                     total={{ label: 'Total', value: formatRp(detail.totalHarga) }}
                 />
 
@@ -169,7 +179,7 @@ function OrderDetailInner() {
                 {isCompleted && (
                     <OrderReviewCard
                         orderId={String(detail.id)}
-                        service="Pesanan Laundry"
+                        service={serviceTitle}
                         initialRating={ulasan?.rating ?? 0}
                         initialComment={ulasan?.komentar ?? ''}
                     />

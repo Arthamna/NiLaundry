@@ -25,11 +25,12 @@ type AuthResponse struct {
 // PenggunaResponse is the public projection of `pengguna` returned by login.
 // CabangID is nil for superadmin (manages all branches).
 type PenggunaResponse struct {
-	ID       int    `json:"id"`
-	Nama     string `json:"nama"`
-	Email    string `json:"email"`
-	Role     string `json:"role"`
-	CabangID *int   `json:"cabangId"`
+	ID         int     `json:"id"`
+	Nama       string  `json:"nama"`
+	Email      string  `json:"email"`
+	Role       string  `json:"role"`
+	CabangID   *int    `json:"cabangId"`
+	CabangNama *string `json:"cabangNama"` // nama_cabang of the admin's branch; nil for superadmin
 }
 
 // UnifiedAuthResponse is returned by POST /auth/login regardless of which
@@ -46,11 +47,17 @@ type UnifiedAuthResponse struct {
 }
 
 func ToPenggunaResponse(p *models.Pengguna, roleName string) PenggunaResponse {
+	var cabangNama *string
+	if p.CabangLaundry != nil && p.CabangLaundry.NamaCabang != "" {
+		nama := p.CabangLaundry.NamaCabang
+		cabangNama = &nama
+	}
 	return PenggunaResponse{
-		ID:       p.IDPengguna,
-		Nama:     p.NamaPengguna,
-		Email:    p.EmailPengguna,
-		Role:     roleName,
-		CabangID: p.CabangLaundryIDCabang,
+		ID:         p.IDPengguna,
+		Nama:       p.NamaPengguna,
+		Email:      p.EmailPengguna,
+		Role:       roleName,
+		CabangID:   p.CabangLaundryIDCabang,
+		CabangNama: cabangNama,
 	}
 }

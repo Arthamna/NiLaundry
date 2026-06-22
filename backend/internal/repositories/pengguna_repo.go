@@ -23,6 +23,11 @@ func (r *penggunaRepo) FindByEmailWithRole(ctx context.Context, email string) (*
 	var p models.Pengguna
 	err := r.db.WithContext(ctx).
 		Preload("Role").
+		// Select only the columns we need: the cabang_laundry TIME columns
+		// (jam_buka/jam_tutup) don't scan into time.Time and would error.
+		Preload("CabangLaundry", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id_cabang", "nama_cabang")
+		}).
 		First(&p, "email_pengguna = ?", email).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -37,6 +42,11 @@ func (r *penggunaRepo) FindByIDWithRole(ctx context.Context, id int) (*models.Pe
 	var p models.Pengguna
 	err := r.db.WithContext(ctx).
 		Preload("Role").
+		// Select only the columns we need: the cabang_laundry TIME columns
+		// (jam_buka/jam_tutup) don't scan into time.Time and would error.
+		Preload("CabangLaundry", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id_cabang", "nama_cabang")
+		}).
 		First(&p, "id_pengguna = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

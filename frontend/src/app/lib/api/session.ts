@@ -73,6 +73,15 @@ export function getCurrentCabangId(): number | null {
     return getCachedPengguna()?.cabangId ?? null;
 }
 
+/**
+ * The logged-in branch admin's branch name (nama_cabang), sourced from the
+ * cached pengguna profile. null for customers and superadmins. Prefer this
+ * over the cabang id for any user-facing branch label.
+ */
+export function getCurrentCabangNama(): string | null {
+    return getCachedPengguna()?.cabangNama ?? null;
+}
+
 /** Persist the session after a successful login. Handles both subject types. */
 export function setSession(result: UnifiedAuthResponse): void {
     if (!isBrowser()) return;

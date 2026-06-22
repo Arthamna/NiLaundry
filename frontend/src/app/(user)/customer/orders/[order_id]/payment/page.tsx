@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import BackButton from '@/components/ui/customer/BackButton';
 import PaymentMethods from '@/components/ui/customer/PaymentMethods';
-import PaymentVoucherSection, { type PaymentVoucher } from '@/components/ui/customer/PaymentVoucherSection';
+import PaymentVoucherSection, {
+    type PaymentVoucher,
+    type VoucherOption,
+} from '@/components/ui/customer/PaymentVoucherSection';
 import OrderSummaryCard, { type OrderServiceLine } from '@/components/ui/customer/OrderSummaryCard';
 import {
     pesananApi,
@@ -20,13 +23,21 @@ import {
 const HEADING_CLASS = 'text-[32px] leading-[38px] font-bold tracking-[-0.6px] text-[#005c55]';
 const idr = (n: number) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
 
+function expiryLabel(berlakuHingga: string, now: number): string {
+    const ms = new Date(berlakuHingga).getTime() - now;
+    return ms <= 0 ? 'Kadaluarsa' : `${Math.ceil(ms / 86_400_000)} hari lagi`;
+}
+
+function amountLabel(v: Voucher): string {
+    return v.tipeDiskon === 'persen' ? `${v.nilaiDiskon}%` : idr(v.nilaiDiskon);
+}
+
 function toPaymentVoucher(v: Voucher, now: number): PaymentVoucher {
-    const ms = new Date(v.berlakuHingga).getTime() - now;
     return {
-        amount: v.tipeDiskon === 'persen' ? `${v.nilaiDiskon}%` : idr(v.nilaiDiskon),
+        amount: amountLabel(v),
         code: v.kode,
         description: `Min. belanja ${idr(v.minPembelian)}`,
-        expiry: ms <= 0 ? 'Kadaluarsa' : `${Math.ceil(ms / 86_400_000)} hari lagi`,
+        expiry: expiryLabel(v.berlakuHingga, now),
     };
 }
 
@@ -37,9 +48,14 @@ export default function PaymentPage() {
 
     const [detail, setDetail] = useState<PesananDetail | null>(null);
     const [serviceLines, setServiceLines] = useState<OrderServiceLine[]>([]);
-    const [voucher, setVoucher] = useState<PaymentVoucher | null>(null);
+    const [ownedVouchers, setOwnedVouchers] = useState<Voucher[]>([]);
     const [voucherId, setVoucherId] = useState<number | null>(null);
+    const [metode, setMetode] = useState('qris');
     const [expanded, setExpanded] = useState(false);
+    // Voucher id forwarded from the dashboard "Use Now" → new order flow; applied
+    // automatically once the order + owned vouchers have loaded (if eligible).
+    const [voucherParam, setVoucherParam] = useState<string | null>(null);
+    const [autoApplied, setAutoApplied] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -53,26 +69,26 @@ export default function PaymentPage() {
                 ? Promise.reject(new Error('Sesi atau pesanan tidak valid.'))
                 : Promise.all([
                       pesananApi.getPesanan(pelangganId, pesananId, controller.signal),
-                      voucherApi.listVouchers(pelangganId, controller.signal),
+                      // Only vouchers the customer has actually claimed can be applied.
+                      voucherApi.listVouchers(pelangganId, 'owned', controller.signal),
                   ]);
 
         request
             .then(([d, vouchers]) => {
                 setDetail(d);
-                // service name is not stored per item (see CUSTOMER.md) — neutral label.
                 setServiceLines(
                     d.items.map((it) => ({
-                        service: 'Layanan',
-                        quantity: `${it.kuantitas}`,
+                        service: it.layananNama || 'Layanan',
+                        quantity: `${it.kuantitas}${it.satuan ? ` ${it.satuan}` : ''}`,
                         subtotal: idr(it.subtotal),
                     })),
                 );
+                // Keep only still-valid, not-yet-used claimed vouchers; the user
+                // picks one to apply.
                 const now = Date.now();
-                const valid = vouchers.filter((v) => new Date(v.berlakuHingga).getTime() >= now);
-                if (valid[0]) {
-                    setVoucher(toPaymentVoucher(valid[0], now));
-                    setVoucherId(valid[0].id);
-                }
+                setOwnedVouchers(
+                    vouchers.filter((v) => !v.usedByMe && new Date(v.berlakuHingga).getTime() >= now),
+                );
             })
             .catch((e) => {
                 if (!controller.signal.aborted) setError(getApiErrorMessage(e));
@@ -83,8 +99,51 @@ export default function PaymentPage() {
         return () => controller.abort();
     }, [orderId]);
 
+    useEffect(() => {
+        setVoucherParam(new URLSearchParams(window.location.search).get('voucher'));
+    }, []);
+
     const total = detail ? idr(detail.totalHarga) : '';
-    const showPay = voucher !== null && !expanded;
+    const orderTotal = detail?.totalHarga ?? 0;
+
+    // Auto-apply a forwarded voucher once the order total + owned vouchers are
+    // known — but only if it's eligible (order total ≥ min purchase). Runs once.
+    useEffect(() => {
+        if (autoApplied || voucherParam == null || ownedVouchers.length === 0 || orderTotal <= 0) return;
+        const wanted = Number(voucherParam);
+        const v = ownedVouchers.find((x) => x.id === wanted);
+        if (v && orderTotal >= v.minPembelian) setVoucherId(v.id);
+        setAutoApplied(true);
+    }, [autoApplied, voucherParam, ownedVouchers, orderTotal]);
+
+    const options: VoucherOption[] = useMemo(() => {
+        const now = Date.now();
+        return ownedVouchers.map((v) => {
+            const eligible = orderTotal >= v.minPembelian;
+            return {
+                id: v.id,
+                amount: amountLabel(v),
+                code: v.kode,
+                description: `Min. belanja ${idr(v.minPembelian)}`,
+                expiry: expiryLabel(v.berlakuHingga, now),
+                eligible,
+                reason: eligible ? undefined : `Min. belanja ${idr(v.minPembelian)}`,
+            };
+        });
+    }, [ownedVouchers, orderTotal]);
+
+    const appliedVoucher = useMemo<PaymentVoucher | null>(() => {
+        if (voucherId == null) return null;
+        const v = ownedVouchers.find((x) => x.id === voucherId);
+        return v ? toPaymentVoucher(v, Date.now()) : null;
+    }, [voucherId, ownedVouchers]);
+
+    function handleApply(id: number) {
+        const v = ownedVouchers.find((x) => x.id === id);
+        if (!v || orderTotal < v.minPembelian) return;
+        setVoucherId(id);
+        setExpanded(false);
+    }
 
     async function handlePay() {
         const pelangganId = getCurrentPelangganId();
@@ -92,11 +151,10 @@ export default function PaymentPage() {
         if (pelangganId == null || !Number.isFinite(pesananId)) return;
         setSubmitting(true);
         try {
-            // NOTE: `metode` is hardcoded until PaymentMethods lifts the selected method (flagged in CUSTOMER.md).
             await pembayaranApi.konfirmasiPembayaran(pelangganId, {
                 pesananId,
-                metode: 'qris',
-                voucherId: voucher ? voucherId : null,
+                metode,
+                voucherId,
             });
             router.push('/customer/orders');
         } catch (e) {
@@ -115,7 +173,7 @@ export default function PaymentPage() {
                         <BackButton href={`/customer/orders/${orderId}`} label="← Kembali" />
                         <h1 className={HEADING_CLASS}>Payment Methods</h1>
                     </div>
-                    <PaymentMethods />
+                    <PaymentMethods value={metode} onChange={setMetode} />
                 </div>
 
                 {error && (
@@ -131,13 +189,13 @@ export default function PaymentPage() {
                         <div className="flex w-full flex-col gap-[20px]">
                             <h2 className={HEADING_CLASS}>Voucher</h2>
                             <PaymentVoucherSection
-                                voucher={voucher}
+                                voucher={appliedVoucher}
+                                appliedId={voucherId}
+                                options={options}
                                 expanded={expanded}
                                 onToggle={() => setExpanded((v) => !v)}
-                                onRemove={() => {
-                                    setVoucher(null);
-                                    setVoucherId(null);
-                                }}
+                                onApply={handleApply}
+                                onRemove={() => setVoucherId(null)}
                             />
                         </div>
 
@@ -152,12 +210,10 @@ export default function PaymentPage() {
                         >
                             {submitting ? (
                                 <span className="font-black">Memproses…</span>
-                            ) : showPay ? (
+                            ) : (
                                 <span className="font-black">
                                     Pay <span className="font-normal">{total}</span>
                                 </span>
-                            ) : (
-                                <span className="font-black">Make Order</span>
                             )}
                         </button>
                     </>

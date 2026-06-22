@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import BranchTopBar from '@/components/ui/branch/BranchTopBar';
 import ReportSummaryCards, { MethodSegment } from '@/components/ui/branch/ReportSummaryCards';
-import PaymentLedger, { LedgerRow } from '@/components/ui/branch/PaymentLedger';
+import PaymentLedger, { LedgerRow, SortDir } from '@/components/ui/branch/PaymentLedger';
 import {
     adminApi,
     getApiErrorMessage,
@@ -38,6 +38,25 @@ function toSegments(items: PaymentMethodChartItem[]): MethodSegment[] {
     }));
 }
 
+type SortKey = 'invoice' | 'customer' | 'date' | 'method' | 'amount';
+
+function comparePayments(a: AdminPayment, b: AdminPayment, key: SortKey): number {
+    switch (key) {
+        case 'invoice':
+            return a.id - b.id;
+        case 'customer':
+            return a.pelangganNama.localeCompare(b.pelangganNama);
+        case 'date':
+            return new Date(a.waktu).getTime() - new Date(b.waktu).getTime();
+        case 'method':
+            return a.metode.localeCompare(b.metode);
+        case 'amount':
+            return a.jumlah - b.jumlah;
+        default:
+            return 0;
+    }
+}
+
 export default function BranchReportsPage() {
     const cabangId = useMemo(() => getCurrentCabangId(), []);
 
@@ -47,6 +66,8 @@ export default function BranchReportsPage() {
     const [ledger, setLedger] = useState<AdminPayment[]>([]);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
+    const [sortKey, setSortKey] = useState<SortKey>('invoice');
+    const [sortDir, setSortDir] = useState<SortDir>('desc');
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -91,14 +112,30 @@ export default function BranchReportsPage() {
         );
     }, [ledger, search]);
 
+    const sortedLedger = useMemo(() => {
+        const dir = sortDir === 'asc' ? 1 : -1;
+        return [...filteredLedger].sort((a, b) => comparePayments(a, b, sortKey) * dir);
+    }, [filteredLedger, sortKey, sortDir]);
+
     const paged = useMemo(() => {
         const start = (page - 1) * LEDGER_PAGE_SIZE;
-        return filteredLedger.slice(start, start + LEDGER_PAGE_SIZE);
-    }, [filteredLedger, page]);
+        return sortedLedger.slice(start, start + LEDGER_PAGE_SIZE);
+    }, [sortedLedger, page]);
+
+    function handleSort(key: string) {
+        const k = key as SortKey;
+        if (k === sortKey) {
+            setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(k);
+            setSortDir('asc');
+        }
+        setPage(1);
+    }
 
     return (
         <>
-            <BranchTopBar title="Reports" branchName={`Branch #${cabangId ?? '-'}`} />
+            <BranchTopBar title="Reports" />
 
             <div className="flex w-full flex-1 flex-col gap-8 bg-[#f8fafc] p-10">
                 {error && (
@@ -125,6 +162,9 @@ export default function BranchReportsPage() {
                         setSearch(q);
                         setPage(1);
                     }}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={handleSort}
                 />
             </div>
         </>

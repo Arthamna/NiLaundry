@@ -13,6 +13,13 @@ import {
 } from '@/lib/api';
 import { avatarToneFor, initialsOf } from '@/components/ui/branch/format';
 
+const COL = {
+    name: 'basis-0 grow-[1.5] min-w-[220px]',
+    email: 'basis-0 grow min-w-[200px]',
+    phone: 'basis-0 grow min-w-[160px]',
+    address: 'basis-0 grow min-w-[200px]',
+};
+
 export default function BranchStaffPage() {
     const cabangId = useMemo(() => getCurrentCabangId(), []);
     const [pegawai, setPegawai] = useState<AdminPegawai[]>([]);
@@ -50,7 +57,7 @@ export default function BranchStaffPage() {
 
     return (
         <>
-            <BranchTopBar title="Staffs" branchName={`Branch #${cabangId ?? '-'}`} />
+            <BranchTopBar title="Staffs" />
 
             <div className="flex w-full flex-col gap-6 px-10 pt-10 pb-10">
                 <div className="flex flex-col gap-1">
@@ -66,10 +73,10 @@ export default function BranchStaffPage() {
                     </p>
                 )}
 
-                <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white">
-                    <div className="flex h-[76px] items-center justify-between border-b border-[#e0e3e1] px-6">
+                <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center justify-between border-b border-[#e0e3e1] px-6 py-5">
                         <h4 className="text-[20px] leading-7 font-semibold text-[#181c1c]">Staff List</h4>
-                        <div className="flex w-[256px] items-center gap-[13px] rounded-[8px] border border-[#bdc9c6] bg-[#f7faf8] px-[17px] py-[9px]">
+                        <div className="flex w-[256px] items-center gap-[13px] rounded-[8px] border border-[#bdc9c6] bg-[#f7faf8] px-4 py-[9px]">
                             <Search size={12} className="shrink-0 text-[#6b7280]" />
                             <input
                                 type="text"
@@ -83,10 +90,10 @@ export default function BranchStaffPage() {
 
                     <div className="w-full overflow-auto">
                         <div className="flex w-full border-b border-[#bdc9c6] bg-[#f1f4f3]">
-                            <HeaderCell width="w-[256px]">Staff Name</HeaderCell>
-                            <HeaderCell width="w-[256px]">Email</HeaderCell>
-                            <HeaderCell width="w-[256px]">Phone Number</HeaderCell>
-                            <HeaderCell width="flex-1">Address</HeaderCell>
+                            <HeaderCell className={COL.name}>Staff Name</HeaderCell>
+                            <HeaderCell className={COL.email}>Email</HeaderCell>
+                            <HeaderCell className={COL.phone}>Phone Number</HeaderCell>
+                            <HeaderCell className={COL.address}>Address</HeaderCell>
                         </div>
 
                         <div className="flex w-full flex-col">
@@ -100,29 +107,31 @@ export default function BranchStaffPage() {
                                 return (
                                     <div
                                         key={member.id}
-                                        className="flex h-[52px] w-full items-center border-b border-[#e0e3e1] last:border-b-0"
+                                        className="flex w-full items-center border-b border-[#e0e3e1] last:border-b-0 hover:bg-[#f7faf8]"
                                     >
-                                        <div className="flex w-[256px] items-center gap-3 px-[15px]">
+                                        <div className={`flex items-center gap-3 px-6 py-4 ${COL.name}`}>
                                             <div
                                                 className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] leading-4 font-semibold ${AVATAR_TONES[tone]}`}
                                             >
                                                 {initialsOf(member.nama)}
                                             </div>
-                                            <span className="text-[14px] leading-5 font-medium text-[#181c1c]">
+                                            <span className="truncate text-[14px] leading-5 font-medium text-[#181c1c]">
                                                 {member.nama}
                                             </span>
                                         </div>
-                                        <div className="flex w-[256px] px-[15px]">
+                                        <div className={`flex items-center px-6 py-4 ${COL.email}`}>
                                             <span className="truncate text-[14px] leading-5 text-[#3e4947]">
                                                 {member.email}
                                             </span>
                                         </div>
-                                        <div className="flex w-[256px] items-center gap-2 px-[15px]">
+                                        <div className={`flex items-center gap-2 px-6 py-4 ${COL.phone}`}>
                                             <Phone size={12} className="shrink-0 text-[#3e4947]" />
-                                            <span className="text-[13px] leading-5 text-[#3e4947]">{member.noTelp}</span>
-                                        </div>
-                                        <div className="flex flex-1 px-[15px]">
                                             <span className="text-[13px] leading-5 text-[#3e4947]">
+                                                {member.noTelp}
+                                            </span>
+                                        </div>
+                                        <div className={`flex items-center px-6 py-4 ${COL.address}`}>
+                                            <span className="truncate text-[13px] leading-5 text-[#3e4947]">
                                                 {member.alamat}
                                             </span>
                                         </div>
@@ -137,10 +146,12 @@ export default function BranchStaffPage() {
     );
 }
 
-function HeaderCell({ width, children }: { width: string; children: React.ReactNode }) {
+function HeaderCell({ className, children }: { className: string; children: React.ReactNode }) {
     return (
-        <div className={`flex ${width} items-center p-3`}>
-            <span className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#3e4947]">{children}</span>
+        <div className={`flex items-center px-6 py-3 ${className}`}>
+            <span className="text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#3e4947] uppercase">
+                {children}
+            </span>
         </div>
     );
 }

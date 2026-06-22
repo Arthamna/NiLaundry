@@ -39,6 +39,9 @@ func SetupRoutes(
 	api := r.Group("/")
 	api.Use(middleware.Authenticate(jwtService), middleware.RequirePelanggan())
 	{
+		// Branch + service catalog for the "create new order" form.
+		api.GET("/katalog", h.Pesanan.Katalog)
+
 		me := api.Group("/pelanggan/me")
 		{
 			me.GET("", h.Pelanggan.GetMe)

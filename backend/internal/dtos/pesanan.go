@@ -17,21 +17,47 @@ type PesananResponse struct {
 	PegawaiID       int       `json:"pegawaiId"`
 	JenisAmbil      string    `json:"jenisAmbil"` // 'pickup' | 'walkin'
 	JenisAntar      string    `json:"jenisAntar"` // 'delivery' | 'walkin'
+	// RingkasanLayanan is a comma-joined summary of the order's distinct layanan
+	// names, populated by the list endpoint for the order cards. Empty when the
+	// caller didn't join items (e.g. the bare Create response).
+	RingkasanLayanan string `json:"ringkasanLayanan"`
 }
 
 type ItemPesananResponse struct {
-	ID        int     `json:"id"`
-	Kuantitas int     `json:"kuantitas"`
-	Subtotal  float64 `json:"subtotal"`
-	Catatan   *string `json:"catatan"`
-	PesananID int     `json:"pesananId"`
-	TarifID   int     `json:"tarifId"`
+	ID          int     `json:"id"`
+	LayananNama string  `json:"layananNama"`
+	Satuan      string  `json:"satuan"`
+	Kuantitas   int     `json:"kuantitas"`
+	Subtotal    float64 `json:"subtotal"`
+	Catatan     *string `json:"catatan"`
+	PesananID   int     `json:"pesananId"`
+	TarifID     int     `json:"tarifId"`
+}
+
+// --- katalog (create-new-order branch + service catalog) ---------------------
+
+type KatalogServiceResponse struct {
+	TarifID        int     `json:"tarifId"`
+	LayananID      int     `json:"layananId"`
+	NamaLayanan    string  `json:"namaLayanan"`
+	Satuan         string  `json:"satuan"`
+	HargaPerSatuan float64 `json:"hargaPerSatuan"`
+}
+
+type KatalogCabangResponse struct {
+	CabangID int                      `json:"cabangId"`
+	Nama     string                   `json:"nama"`
+	Alamat   string                   `json:"alamat"`
+	Services []KatalogServiceResponse `json:"services"`
 }
 
 type PesananDetailResponse struct {
 	PesananResponse
 	Items  []ItemPesananResponse `json:"items"`
 	Ulasan *UlasanResponse       `json:"ulasan"`
+	// Voucher is the voucher applied to this order (when voucherId is set),
+	// so the order-detail summary can show the discount line.
+	Voucher *VoucherResponse `json:"voucher"`
 }
 
 type ItemPesananInput struct {

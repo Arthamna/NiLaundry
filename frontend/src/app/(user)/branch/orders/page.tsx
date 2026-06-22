@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import BranchTopBar from '@/components/ui/branch/BranchTopBar';
 import OrdersStatCards from '@/components/ui/branch/OrdersStatCards';
-import OrdersTable, { OrdersRow } from '@/components/ui/branch/OrdersTable';
+import OrdersTable, { OrdersRow, SortDir } from '@/components/ui/branch/OrdersTable';
 import {
     adminApi,
     getApiErrorMessage,
@@ -20,11 +20,13 @@ import {
     mapOrderStatus,
     uiStatusToBackend,
 } from '@/components/ui/branch/format';
-import type { OrderStatus } from '@/components/ui/branch/StatusBadge';
+import { ORDER_STATUSES, STATUS_LABEL, type OrderStatus } from '@/components/ui/branch/StatusBadge';
 
-type FilterLabel = 'All' | OrderStatus;
-const FILTERS: FilterLabel[] = ['All', 'Pickup', 'Processing', 'Delivery', 'Completed'];
+type FilterValue = 'all' | OrderStatus;
+const FILTERS: FilterValue[] = ['all', ...ORDER_STATUSES];
 const PAGE_SIZE = 10;
+
+type SortKey = 'id' | 'est';
 
 function toOrdersRow(o: AdminOrder): OrdersRow {
     const est = formatEstFinish(o.estimasiSelesai);
@@ -49,12 +51,16 @@ function countForUiStatus(counts: OrderStatusStatistik['counts'], target: OrderS
 
 export default function BranchOrdersPage() {
     const cabangId = useMemo(() => getCurrentCabangId(), []);
-    const [filter, setFilter] = useState<FilterLabel>('All');
+    const [filter, setFilter] = useState<FilterValue>('all');
     const [page, setPage] = useState(1);
+    const [sortKey, setSortKey] = useState<SortKey>('id');
+    const [sortDir, setSortDir] = useState<SortDir>('desc');
     const [orders, setOrders] = useState<AdminOrder[]>([]);
     const [stats, setStats] = useState<OrderStatusStatistik | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    const sortParam = `${sortKey === 'id' ? 'id_pesanan' : 'estimasi_selesai_pesanan'} ${sortDir}`;
 
     useEffect(() => {
         if (cabangId == null) {
@@ -63,14 +69,14 @@ export default function BranchOrdersPage() {
             return;
         }
         const controller = new AbortController();
-        const statusParam = filter === 'All' ? undefined : uiStatusToBackend(filter);
+        const statusParam = filter === 'all' ? undefined : uiStatusToBackend(filter);
         setIsLoading(true);
 
         Promise.all([
             adminApi.getOrderStatusStatistik(cabangId, controller.signal),
             adminApi.listOrders(
                 cabangId,
-                { page, limit: PAGE_SIZE, status: statusParam },
+                { page, limit: PAGE_SIZE, status: statusParam, sort: sortParam },
                 controller.signal,
             ),
         ])
@@ -86,40 +92,51 @@ export default function BranchOrdersPage() {
                 if (!controller.signal.aborted) setIsLoading(false);
             });
         return () => controller.abort();
-    }, [cabangId, filter, page]);
+    }, [cabangId, filter, page, sortParam]);
 
-    const totalForFilter = filter === 'All'
-        ? stats?.total ?? 0
-        : countForUiStatus(stats?.counts ?? [], filter);
+    function handleSort(key: string) {
+        const k = key as SortKey;
+        if (k === sortKey) {
+            setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(k);
+            setSortDir('desc');
+        }
+        setPage(1);
+    }
+
+    const totalForFilter =
+        filter === 'all' ? stats?.total ?? 0 : countForUiStatus(stats?.counts ?? [], filter);
 
     return (
         <>
-            <BranchTopBar title="Orders" branchName={`Branch #${cabangId ?? '-'}`} />
+            <BranchTopBar title="Orders" />
 
             <div className="flex w-full flex-col gap-8 px-10 pt-10 pb-10">
                 <OrdersStatCards
                     total={stats?.total ?? 0}
-                    pickup={countForUiStatus(stats?.counts ?? [], 'Pickup')}
-                    processing={countForUiStatus(stats?.counts ?? [], 'Processing')}
-                    delivery={countForUiStatus(stats?.counts ?? [], 'Delivery')}
-                    completed={countForUiStatus(stats?.counts ?? [], 'Completed')}
+                    pickup={countForUiStatus(stats?.counts ?? [], 'pickup')}
+                    processing={countForUiStatus(stats?.counts ?? [], 'processing')}
+                    delivery={countForUiStatus(stats?.counts ?? [], 'delivery')}
+                    completed={countForUiStatus(stats?.counts ?? [], 'completed')}
                 />
 
-                <div className="flex items-start gap-5">
-                    {FILTERS.map((label) => {
-                        const isActive = label === filter;
+                <div className="flex items-start gap-3">
+                    {FILTERS.map((value) => {
+                        const isActive = value === filter;
+                        const label = value === 'all' ? 'All' : STATUS_LABEL[value];
                         return (
                             <button
-                                key={label}
+                                key={value}
                                 type="button"
                                 onClick={() => {
-                                    setFilter(label);
+                                    setFilter(value);
                                     setPage(1);
                                 }}
-                                className={`flex items-center rounded-full border text-[12px] leading-4 font-medium ${
+                                className={`flex items-center rounded-full border px-[13px] py-[5px] text-[12px] leading-4 font-medium transition-colors ${
                                     isActive
-                                        ? 'border-[#005c55] bg-[#6df5e1] px-[13px] py-[3px] text-[#006f64]'
-                                        : 'border-[#bdc9c6] bg-[#e5e9e7] px-[9px] py-[3px] text-[#181c1c]'
+                                        ? 'border-[#005c55] bg-[#6df5e1] text-[#006f64]'
+                                        : 'border-[#bdc9c6] bg-[#e5e9e7] text-[#181c1c] hover:bg-[#d8dedc]'
                                 }`}
                             >
                                 {label}
@@ -140,6 +157,9 @@ export default function BranchOrdersPage() {
                     pageSize={PAGE_SIZE}
                     totalEntries={totalForFilter}
                     onPageChange={setPage}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={handleSort}
                 />
             </div>
         </>

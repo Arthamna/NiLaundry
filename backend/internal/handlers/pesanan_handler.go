@@ -15,6 +15,7 @@ type PesananHandler interface {
 	GetDetail(c *gin.Context)
 	Subtotal(c *gin.Context)
 	Create(c *gin.Context)
+	Katalog(c *gin.Context)
 }
 
 type pesananHandler struct {
@@ -84,6 +85,18 @@ func (h *pesananHandler) Subtotal(c *gin.Context) {
 		return
 	}
 	resp, err := h.svc.Subtotal(c.Request.Context(), items)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	common.OK(c, http.StatusOK, resp)
+}
+
+// Katalog lists every branch with its sellable services (tarif + layanan) for
+// the "create new order" form. Not customer-scoped — any authenticated
+// pelanggan may read the catalog.
+func (h *pesananHandler) Katalog(c *gin.Context) {
+	resp, err := h.svc.Katalog(c.Request.Context())
 	if err != nil {
 		handleServiceError(c, err)
 		return

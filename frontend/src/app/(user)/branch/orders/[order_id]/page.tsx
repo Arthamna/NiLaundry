@@ -17,7 +17,7 @@ import {
     type AdminPegawai,
     type OrderStatusStatistik,
 } from '@/lib/api';
-import type { OrderStatus } from '@/components/ui/branch/StatusBadge';
+import { ORDER_STATUSES, STATUS_LABEL, type OrderStatus } from '@/components/ui/branch/StatusBadge';
 import {
     avatarToneFor,
     formatEstFinish,
@@ -27,8 +27,8 @@ import {
     uiStatusToBackend,
 } from '@/components/ui/branch/format';
 
-const FILTERS: ('All' | OrderStatus)[] = ['All', 'Pickup', 'Processing', 'Delivery', 'Completed'];
-const STATUS_OPTIONS: OrderStatus[] = ['Pickup', 'Processing', 'Delivery', 'Completed'];
+const FILTERS: ('all' | OrderStatus)[] = ['all', ...ORDER_STATUSES];
+const STATUS_OPTIONS: OrderStatus[] = [...ORDER_STATUSES];
 
 function toOrdersRow(o: AdminOrder): OrdersRow {
     const est = formatEstFinish(o.estimasiSelesai);
@@ -116,26 +116,26 @@ function OrderDetailInner() {
 
     return (
         <>
-            <BranchTopBar title="Orders" branchName={`Branch #${cabangId ?? '-'}`} />
+            <BranchTopBar title="Orders" />
             <div className="flex w-full flex-col gap-8 px-10 pt-10 pb-10">
                 <OrdersStatCards
                     total={backdropStats?.total ?? 0}
-                    pickup={countForUiStatus(backdropStats?.counts ?? [], 'Pickup')}
-                    processing={countForUiStatus(backdropStats?.counts ?? [], 'Processing')}
-                    delivery={countForUiStatus(backdropStats?.counts ?? [], 'Delivery')}
-                    completed={countForUiStatus(backdropStats?.counts ?? [], 'Completed')}
+                    pickup={countForUiStatus(backdropStats?.counts ?? [], 'pickup')}
+                    processing={countForUiStatus(backdropStats?.counts ?? [], 'processing')}
+                    delivery={countForUiStatus(backdropStats?.counts ?? [], 'delivery')}
+                    completed={countForUiStatus(backdropStats?.counts ?? [], 'completed')}
                 />
                 <div className="flex items-start gap-5">
-                    {FILTERS.map((label, i) => (
+                    {FILTERS.map((value, i) => (
                         <span
-                            key={label}
-                            className={`flex items-center rounded-full border text-[12px] leading-4 font-medium ${
+                            key={value}
+                            className={`flex items-center rounded-full border px-[13px] py-[5px] text-[12px] leading-4 font-medium ${
                                 i === 0
-                                    ? 'border-[#005c55] bg-[#6df5e1] px-[13px] py-[3px] text-[#006f64]'
-                                    : 'border-[#bdc9c6] bg-[#e5e9e7] px-[9px] py-[3px] text-[#181c1c]'
+                                    ? 'border-[#005c55] bg-[#6df5e1] text-[#006f64]'
+                                    : 'border-[#bdc9c6] bg-[#e5e9e7] text-[#181c1c]'
                             }`}
                         >
-                            {label}
+                            {value === 'all' ? 'All' : STATUS_LABEL[value]}
                         </span>
                     ))}
                 </div>
@@ -157,8 +157,8 @@ function OrderDetailInner() {
             {detail && (
                 <OrderStatusDrawer
                     orderId={formatOrderId(detail.id)}
-                    statusLabel={mapOrderStatus(detail.status)}
-                    currentStatus={mapOrderStatus(detail.status)}
+                    statusLabel={STATUS_LABEL[mapOrderStatus(detail.status)]}
+                    currentStatus={STATUS_LABEL[mapOrderStatus(detail.status)]}
                     estCompletion={new Date(detail.estimasiSelesai).toLocaleString('id-ID', {
                         day: '2-digit',
                         month: 'short',

@@ -10,14 +10,38 @@ export interface PaymentVoucher {
     expiry: string;
 }
 
+/** A claimed voucher the customer can apply to this order. */
+export interface VoucherOption {
+    id: number;
+    amount: string;
+    code: string;
+    description: string;
+    expiry: string;
+    /** false when the order total is below the voucher's minimum purchase. */
+    eligible: boolean;
+    /** Shown when not eligible (e.g. "Min. belanja Rp 50.000"). */
+    reason?: string;
+}
+
 interface PaymentVoucherSectionProps {
     voucher: PaymentVoucher | null;
+    appliedId: number | null;
+    options: VoucherOption[];
     expanded: boolean;
     onToggle: () => void;
+    onApply: (id: number) => void;
     onRemove: () => void;
 }
 
-export default function PaymentVoucherSection({ voucher, expanded, onToggle, onRemove }: PaymentVoucherSectionProps) {
+export default function PaymentVoucherSection({
+    voucher,
+    appliedId,
+    options,
+    expanded,
+    onToggle,
+    onApply,
+    onRemove,
+}: PaymentVoucherSectionProps) {
     return (
         <div className="flex w-full flex-col gap-[20px]">
             {voucher ? (
@@ -52,6 +76,55 @@ export default function PaymentVoucherSection({ voucher, expanded, onToggle, onR
                     <p className="text-center text-[15px] leading-[20px] font-medium text-[#bdc9c6]">No Active Voucher.</p>
                     <div className="h-px w-full rounded-[1px] bg-[#bdc9c6]" />
                 </>
+            )}
+
+            {/* Voucher picker — the list of claimed vouchers with working Apply buttons. */}
+            {expanded && (
+                <div className="flex w-full flex-col gap-[12px]">
+                    {options.length === 0 ? (
+                        <p className="text-center text-[14px] leading-5 text-[#62748e]">
+                            Belum ada voucher. Tukarkan kode di menu Vouchers.
+                        </p>
+                    ) : (
+                        options.map((opt) => {
+                            const isApplied = opt.id === appliedId;
+                            return (
+                                <div
+                                    key={opt.id}
+                                    className={`flex w-full items-center justify-between rounded-[12px] border p-[14px] ${
+                                        isApplied
+                                            ? 'border-[#009689] bg-[rgba(0,150,137,0.06)]'
+                                            : 'border-[#bdc9c6] bg-white'
+                                    }`}
+                                >
+                                    <div className="flex min-w-0 flex-col gap-[2px]">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[14px] leading-5 font-bold text-[#0f172b]">{opt.code}</span>
+                                            <span className="text-[12px] leading-4 font-semibold text-[#00776a]">
+                                                {opt.amount}
+                                            </span>
+                                        </div>
+                                        <span className="truncate text-[11px] leading-4 text-[#45556c]">
+                                            {opt.description}
+                                        </span>
+                                        <span className="text-[10px] leading-[15px] text-[#62748e]">{opt.expiry}</span>
+                                        {!opt.eligible && opt.reason && (
+                                            <span className="text-[10px] leading-[15px] text-[#ba1a1a]">{opt.reason}</span>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => onApply(opt.id)}
+                                        disabled={!opt.eligible || isApplied}
+                                        className="shrink-0 rounded-[8px] bg-[#005c52] px-4 py-2 text-[13px] leading-4 font-semibold text-white transition-colors hover:bg-[#00463e] disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {isApplied ? 'Applied' : 'Apply'}
+                                    </button>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
             )}
 
             <div className="flex w-full flex-col items-center">
