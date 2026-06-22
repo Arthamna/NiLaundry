@@ -40,6 +40,7 @@ func main() {
 	tarifRepo := repositories.NewTarifRepository(db)
 	branchRepo := repositories.NewBranchRepository(db)
 	kurirRepo := repositories.NewKurirRepository(db)
+	superadminRepo := repositories.NewSuperadminRepository(db)
 
 	// services
 	authSvc := services.NewAuthService(pelangganRepo, penggunaRepo, jwtService)
@@ -51,6 +52,7 @@ func main() {
 	pembayaranSvc := services.NewPembayaranService(pembayaranRepo, pesananRepo, voucherRepo)
 	branchSvc := services.NewBranchService(branchRepo)
 	kurirSvc := services.NewKurirService(kurirRepo)
+	superadminSvc := services.NewSuperadminService(superadminRepo)
 
 	// handlers
 	h := routes.Handlers{
@@ -63,6 +65,7 @@ func main() {
 		Pembayaran: handlers.NewPembayaranHandler(pembayaranSvc),
 		Kurir:      handlers.NewKurirHandler(kurirSvc),
 		Branch:     handlers.NewBranchHandler(branchSvc),
+		Superadmin: handlers.NewSuperadminHandler(superadminSvc),
 	}
 
 	r := gin.Default()
