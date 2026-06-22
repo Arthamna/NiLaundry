@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { CalendarClock, ChevronDown, CircleDot, Lock, Save, User, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, CircleDot, Save, User, X } from 'lucide-react';
 
 interface ItemDetail {
     service: string;
@@ -15,6 +15,7 @@ interface OrderStatusDrawerProps {
     totalItem: number;
     items: ItemDetail[];
     closeHref: string;
+    employeeName?: string;
 }
 
 export default function OrderStatusDrawer({
@@ -25,6 +26,7 @@ export default function OrderStatusDrawer({
     totalItem,
     items,
     closeHref,
+    employeeName = 'John Doe',
 }: OrderStatusDrawerProps) {
     return (
         <aside className="fixed top-0 right-0 z-40 flex h-full w-[400px] max-w-[400px] flex-col border-l border-[#bdc9c6] bg-white shadow-[-10px_0px_15px_-3px_rgba(0,0,0,0.1)]">
@@ -61,8 +63,24 @@ export default function OrderStatusDrawer({
                                 Enter your credentials to confirm this update
                             </p>
                         </div>
-                        <Field label="Employee ID / Name" placeholder="e.g. EMP-001 or John Doe" icon={<User size={16} />} />
-                        <Field label="PIN / Password" placeholder="Enter your PIN" type="password" icon={<Lock size={16} />} />
+                        <div className="flex w-full flex-col gap-1.5">
+                            <label className="text-[13px] leading-[18px] font-medium text-[#181c1c]">
+                                Employee ID / Name
+                            </label>
+                            <button
+                                type="button"
+                                className="relative flex h-[42px] w-full items-center rounded-[6px] border border-[#bdc9c6] bg-white pr-10 pl-10 text-left"
+                            >
+                                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#6e7977]">
+                                    <User size={16} />
+                                </span>
+                                <span className="text-[14px] text-[#6e7977]">{employeeName}</span>
+                                <ChevronDown
+                                    size={18}
+                                    className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#3e4947]"
+                                />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Current Status */}
@@ -82,19 +100,19 @@ export default function OrderStatusDrawer({
                         <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Update Status</span>
                         <button
                             type="button"
-                            className="flex w-full items-center justify-between rounded-[8px] border border-[#bdc9c6] bg-white px-[17px] py-[13px]"
+                            className="flex w-full items-center justify-between rounded-[6px] border border-[#bdc9c6] bg-white px-[17px] py-[13px]"
                         >
                             <span className="text-[14px] leading-5 text-[#6e7977]">Select next status...</span>
-                            <ChevronDown size={16} className="text-[#3e4947]" />
+                            <ChevronDown size={18} className="text-[#3e4947]" />
                         </button>
                     </div>
 
                     {/* Est. Completion Time */}
                     <div className="flex w-full flex-col gap-1">
                         <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Est. Completion Time</span>
-                        <div className="flex w-full items-center justify-between rounded-[8px] border border-[#bdc9c6] bg-white px-[17px] py-[13px]">
+                        <div className="flex w-full items-center justify-between rounded-[6px] border border-[#bdc9c6] bg-white px-[17px] py-[13px]">
                             <span className="text-[14px] leading-5 text-[#181c1c]">{estCompletion}</span>
-                            <CalendarClock size={16} className="shrink-0 text-[#0f766e]" />
+                            <CalendarClock size={20} className="shrink-0 text-[#0f766e]" />
                         </div>
                     </div>
                 </div>
@@ -102,16 +120,14 @@ export default function OrderStatusDrawer({
                 {/* Item Details */}
                 <div className="flex w-full flex-col gap-2">
                     <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Item Details</span>
-                    <div className="flex w-full flex-col rounded-[8px] border border-[#e0e3e1] bg-white">
-                        <div className="flex items-center justify-between border-b border-[#e0e3e1] px-4 py-3">
+                    <div className="flex w-full flex-col gap-2 rounded-[8px] border border-[#bdc9c6] bg-white p-[17px]">
+                        <div className="flex items-center justify-between">
                             <span className="text-[14px] leading-5 text-[#3e4947]">Total Item</span>
-                            <span className="text-[14px] leading-5 font-semibold text-[#181c1c]">{totalItem}</span>
+                            <span className="text-[14px] leading-5 font-medium text-[#181c1c]">{totalItem}</span>
                         </div>
                         {items.map((item, i) => (
-                            <div
-                                key={i}
-                                className="flex flex-col gap-1 border-b border-[#e0e3e1] px-4 py-3 last:border-b-0"
-                            >
+                            <React.Fragment key={i}>
+                                <div className="h-0 w-full border-b border-[rgba(189,201,198,0.5)]" />
                                 <div className="flex items-center justify-between">
                                     <span className="text-[14px] leading-5 text-[#3e4947]">Service</span>
                                     <span className="text-[14px] leading-5 font-medium text-[#181c1c]">
@@ -124,58 +140,30 @@ export default function OrderStatusDrawer({
                                         {item.weightQty}
                                     </span>
                                 </div>
-                            </div>
+                            </React.Fragment>
                         ))}
                     </div>
                 </div>
             </div>
 
             {/* Footer */}
-            <div className="w-full border-t border-[#bdc9c6] bg-white">
+            <div className="w-full border-t border-[#bdc9c6] bg-[#f7faf8]">
                 <div className="flex items-center justify-end gap-3 px-6 py-4">
                     <Link
                         href={closeHref}
-                        className="px-4 py-2 text-[14px] leading-5 font-medium text-[#3e4947] transition-colors hover:text-[#181c1c]"
+                        className="rounded-[8px] border border-transparent px-4 py-2 text-[14px] leading-5 font-medium text-[#3e4947] transition-colors hover:text-[#181c1c]"
                     >
                         Cancel
                     </Link>
                     <button
                         type="button"
-                        className="flex items-center gap-2 rounded-[8px] bg-[#0f766e] px-4 py-2 text-[14px] leading-5 font-semibold text-white transition-colors hover:bg-[#0c5f59]"
+                        className="flex items-center gap-2 rounded-[8px] bg-[#005c55] px-4 py-2 text-[14px] leading-5 font-medium text-white drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#004b45]"
                     >
-                        <Save size={16} />
+                        <Save size={14} />
                         Save Status
                     </button>
                 </div>
             </div>
         </aside>
-    );
-}
-
-function Field({
-    label,
-    placeholder,
-    icon,
-    type = 'text',
-}: {
-    label: string;
-    placeholder: string;
-    icon: React.ReactNode;
-    type?: string;
-}) {
-    return (
-        <div className="flex w-full flex-col gap-1.5">
-            <label className="text-[13px] leading-[18px] font-medium text-[#181c1c]">{label}</label>
-            <div className="relative h-[42px] w-full">
-                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#6e7977]">
-                    {icon}
-                </span>
-                <input
-                    type={type}
-                    placeholder={placeholder}
-                    className="h-[42px] w-full rounded-[6px] border border-[#bdc9c6] bg-white pr-[14px] pl-10 text-[14px] text-[#181c1c] outline-none placeholder:text-[#6e7977]"
-                />
-            </div>
-        </div>
     );
 }

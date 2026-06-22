@@ -3,12 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { WashingMachine, LayoutGrid, FileText, BarChart3, LogOut } from 'lucide-react';
+import { WashingMachine, LayoutGrid, FileText, Users, BarChart3, MessageSquare, LogOut } from 'lucide-react';
 
 const navLinks = [
     { href: '/branch/dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { href: '/branch/orders', icon: FileText, label: 'Orders' },
     { href: '/branch/reports', icon: BarChart3, label: 'Reports' },
+    { href: '/branch/reviews', icon: MessageSquare, label: 'Reviews' },
+    { href: '/branch/staffs', icon: Users, label: 'Staffs' },
 ];
 
 // Labels are hidden while collapsed and fade in when the sidebar is hovered (expanded).

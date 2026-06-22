@@ -21,14 +21,29 @@ import {
     type Notifikasi,
 } from '@/lib/api';
 
-// The per-order progress timeline is not exposed by the API yet (see CUSTOMER.md);
-// this stays a static visual until the backend provides order stage history.
-const STEPS = [
-    { label: 'Pickup', sublabel: '9:15 AM', icon: <Truck size={18} />, status: 'done' as const },
-    { label: 'Processing', sublabel: '10:30 AM', icon: <PackageCheck size={18} />, status: 'done' as const },
-    // { label: 'Washing', sublabel: 'In Progress', icon: <WashingMachine size={18} />, status: 'active' as const },
-    { label: 'Delivery', sublabel: 'In Progress', icon: <CheckCircle2 size={18} />, status: 'active' as const },
-];
+const STEP_LABEL: Record<string, string> = {
+    pickup: 'Pickup',
+    processing: 'Processing',
+    delivery: 'Delivery',
+    completed: 'Completed',
+};
+
+function scenarioSteps(jenisAmbil: string, jenisAntar: string): string[] {
+    const steps: string[] = [];
+    if (jenisAmbil === 'pickup') steps.push('pickup');
+    steps.push('processing');
+    if (jenisAntar === 'delivery') steps.push('delivery');
+    steps.push('completed');
+    return steps;
+}
+
+function iconFor(tipe: string): string {
+    const t = tipe.toLowerCase();
+    if (t.includes('order') || t.includes('pesan')) return '📦';
+    if (t.includes('promo') || t.includes('voucher')) return '🎟️';
+    if (t.includes('pay') || t.includes('bayar')) return '💳';
+    return '🔔';
+}
 
 const idr = (n: number) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
 
@@ -36,34 +51,81 @@ interface DashboardView {
     activeCount: number;
     completedCount: number;
     totalSaved: string;
-    progress: { orderId: string; estimatedTime: string; statusLabel: string } | null;
-    activity: { id: string; message: string; timestamp: string }[];
+    progress: { 
+        orderId: string; 
+        estimatedTime: string; 
+        statusLabel: string;
+        steps: { label: string; sublabel: string; icon: React.ReactNode; status: 'done' | 'active' | 'pending' }[];
+        progressFraction: number;
+    } | null;
+    activity: { id: string; icon: string; title: string; subtitle: string; time: string; unread?: boolean }[];
     voucherCards: { code: string; title: string; description: string; expiresIn: string }[];
 }
 
 function buildView(orders: Pesanan[], vouchers: Voucher[], notifs: Notifikasi[], totalSaved: number): DashboardView {
     const now = Date.now();
-    const active = orders.filter((o) => o.status !== 'selesai');
-    const completed = orders.filter((o) => o.status === 'selesai');
+    const active = orders.filter((o) => o.status !== 'selesai' && o.status !== 'completed' && o.status !== 'dibatalkan' && o.status !== 'canceled').sort((a, b) => new Date(b.tanggalPesanan).getTime() - new Date(a.tanggalPesanan).getTime());
+    const completed = orders.filter((o) => o.status === 'selesai' || o.status === 'completed');
     const first = active[0];
 
-    const progress = first
-        ? {
-              orderId: `#${first.id}`,
-              estimatedTime: (() => {
-                  const d = new Date(first.estimasiSelesai);
-                  return Number.isNaN(d.getTime())
-                      ? ''
-                      : d.toLocaleString('id-ID', {
-                            day: '2-digit',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        });
-              })(),
-              statusLabel: first.status,
-          }
-        : null;
+    let progress = null;
+    if (first) {
+        const scenario = scenarioSteps(first.jenisAmbil, first.jenisAntar);
+        
+        let status = first.status;
+        if (status === 'diproses') status = 'processing';
+        else if (status === 'selesai') status = 'completed';
+
+        let currentIndex = scenario.indexOf(status);
+        if (currentIndex < 0) currentIndex = 0;
+
+        const activeStepName = scenario[currentIndex];
+        
+        const BASE_STEPS = ['pickup', 'processing', 'delivery'];
+        let activeBaseIndex = BASE_STEPS.indexOf(activeStepName);
+        if (activeStepName === 'completed') {
+            activeBaseIndex = 3;
+        }
+
+        const maxIndex = BASE_STEPS.length - 1;
+        const progressFraction = Math.min(activeBaseIndex, maxIndex) / maxIndex;
+
+        const stepsData = BASE_STEPS.map((key, i) => {
+            const state = i < activeBaseIndex ? 'done' : i === activeBaseIndex ? 'active' : 'pending';
+            const sublabel = state === 'active' ? 'In Progress' : state === 'pending' ? 'Pending' : 'Done';
+            
+            let icon;
+            if (key === 'pickup') icon = <Truck size={18} />;
+            else if (key === 'processing') icon = <PackageCheck size={18} />;
+            else if (key === 'delivery') icon = <CheckCircle2 size={18} />;
+            else icon = <CheckCircle2 size={18} />;
+
+            return {
+                label: STEP_LABEL[key] ?? key,
+                sublabel,
+                icon,
+                status: state as 'done' | 'active' | 'pending',
+            };
+        });
+
+        progress = {
+            orderId: `#${first.id}`,
+            estimatedTime: (() => {
+                const d = new Date(first.estimasiSelesai);
+                return Number.isNaN(d.getTime())
+                    ? ''
+                    : d.toLocaleString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                      });
+            })(),
+            statusLabel: STEP_LABEL[first.status] ?? first.status,
+            steps: stepsData,
+            progressFraction,
+        };
+    }
 
     const voucherCards = vouchers
         .filter((v) => new Date(v.berlakuHingga).getTime() >= now)
@@ -83,7 +145,14 @@ function buildView(orders: Pesanan[], vouchers: Voucher[], notifs: Notifikasi[],
         completedCount: completed.length,
         totalSaved: idr(totalSaved),
         progress,
-        activity: notifs.slice(0, 3).map((n) => ({ id: String(n.id), message: n.judul, timestamp: '' })),
+        activity: notifs.slice(0, 3).map((n) => ({
+            id: String(n.id),
+            icon: iconFor(n.tipe),
+            title: n.judul,
+            subtitle: n.pesan,
+            time: '',
+            unread: false,
+        })),
         voucherCards,
     };
 }
@@ -139,15 +208,16 @@ export default function CustomerDashboardPage() {
                     />
                     <div className="grid grid-cols-12 gap-6">
                         <div className="col-span-8 flex flex-col gap-6">
-                            {view.progress && (
+                            {view.progress && view.progress.steps.length > 0 && (
                                 <OrderProgress
                                     orderId={view.progress.orderId}
                                     estimatedTime={view.progress.estimatedTime}
                                     statusLabel={view.progress.statusLabel}
-                                    steps={STEPS}
+                                    steps={view.progress.steps}
+                                    progress={view.progress.progressFraction}
                                 />
                             )}
-                            <RecentActivity items={view.activity} />
+                            <RecentActivity items={view.activity} onViewAll={() => router.push('/customer/inbox')} />
                         </div>
                         <div className="col-span-4 flex flex-col gap-6">
                             <VouchersPanel vouchers={view.voucherCards} />

@@ -10,6 +10,14 @@ export interface PaymentRow {
     amount: string;
 }
 
+// Exact Figma dot fills per payment method (dashboard node 347:3676).
+const METHOD_DOT: Record<string, string> = {
+    QRIS: 'bg-[#0f766e]',
+    BANK: 'bg-[#f59e0b]',
+    GOPAY: 'bg-[#0ea5e9]',
+    OVO: 'bg-[#a855f7]',
+};
+
 export default function RecentPaymentsTable({ rows }: { rows: PaymentRow[] }) {
     return (
         <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white p-px shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
@@ -55,7 +63,10 @@ export default function RecentPaymentsTable({ rows }: { rows: PaymentRow[] }) {
                             <div className="flex w-[256px] flex-col px-4 pt-[26px] pb-[27px]">
                                 <span className="text-[14px] leading-5 text-[#3e4947]">{row.date}</span>
                             </div>
-                            <div className="flex w-[144px] items-center pl-4">
+                            <div className="flex w-[144px] items-center gap-[6px] pl-4">
+                                <span
+                                    className={`size-[8px] shrink-0 rounded-full ${METHOD_DOT[row.method] ?? 'bg-[#6e7977]'}`}
+                                />
                                 <span className="text-[14px] leading-5 text-[#181c1c]">{row.method}</span>
                             </div>
                             <div className="flex w-[200px] flex-col items-end justify-center px-4 pt-[26px] pb-[27px]">

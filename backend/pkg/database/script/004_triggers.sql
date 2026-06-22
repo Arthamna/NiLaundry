@@ -16,7 +16,7 @@ BEGIN
         RAISE EXCEPTION 'Pesanan tidak ditemukan';
     END IF;
 
-    IF v_status_pesanan <> 'selesai' THEN
+    IF v_status_pesanan <> 'completed' THEN
         RAISE EXCEPTION 'Ulasan hanya dapat dibuat untuk pesanan selesai';
     END IF;
 

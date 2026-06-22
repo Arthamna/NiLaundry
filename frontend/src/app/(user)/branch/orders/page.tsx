@@ -4,7 +4,7 @@ import BranchTopBar from '@/components/ui/branch/BranchTopBar';
 import OrdersStatCards from '@/components/ui/branch/OrdersStatCards';
 import OrdersTable, { OrdersRow } from '@/components/ui/branch/OrdersTable';
 
-const FILTERS = ['All', 'Pickup', 'Processing', 'Ready', 'Completed'];
+const FILTERS = ['All', 'Pickup', 'Processing', 'Delivery', 'Completed'];
 
 const ORDERS: OrdersRow[] = [
     {
