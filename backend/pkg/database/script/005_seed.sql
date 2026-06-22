@@ -212,11 +212,11 @@ INSERT INTO pesanan (
     voucher_id_voucher,
     pegawai_id_pegawai
 ) VALUES
-    (1, 2, 'selesai',  '', NOW() + INTERVAL '2 days', 14000, 1, 1,    1),
-    (2, 1, 'diproses', '', NOW() + INTERVAL '1 day',  26000, 1, NULL, 4),
-    (3, 2, 'selesai',  '', NOW() + INTERVAL '3 days', 15000, 1, 2,    7),
-    (4, 1, 'diambil',  '', NOW() + INTERVAL '4 days', 35000, 1, 3,    2),
-    (5, 2, 'baru',     '', NOW() + INTERVAL '1 day',  23500, 1, NULL, 5)
+    (1, 2, 'completed',  '', NOW() + INTERVAL '2 days', 14000, 1, 1,    1),
+    (2, 1, 'processing', '', NOW() + INTERVAL '1 day',  26000, 1, NULL, 4),
+    (3, 2, 'completed',  '', NOW() + INTERVAL '3 days', 15000, 1, 2,    7),
+    (4, 1, 'delivery',   '', NOW() + INTERVAL '4 days', 35000, 1, 3,    2),
+    (5, 2, 'pickup', '', NOW() + INTERVAL '1 day',  23500, 1, NULL, 5)
 ON CONFLICT (id_pesanan) DO NOTHING;
 
 SELECT setval(
