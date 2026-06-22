@@ -26,4 +26,5 @@ export * as ulasanApi from './ulasan';
 export * as notifikasiApi from './notifikasi';
 export * as pembayaranApi from './pembayaran';
 export * as adminApi from './admin';
+export * as superadminApi from './superadmin';
 export * as kurirApi from './kurir';

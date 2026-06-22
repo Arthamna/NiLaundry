@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export type LiveOrderStatus = 'pickup' | 'processing' | 'delivery' | 'completed';
 
@@ -62,12 +63,15 @@ export default function LiveOrdersTable({ rows }: LiveOrdersTableProps) {
                 <div className="flex flex-col">
                     <h3 className="text-[15px] leading-[22.5px] font-semibold text-[#0f172b]">Live Orders</h3>
                     <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">
-                        Pesanan dengan status aktif
+                        Active orders
                     </p>
                 </div>
-                <button type="button" className="text-[10.5px] leading-[14px] font-medium text-[#00786f]">
-                    View all →
-                </button>
+                <Link
+                    href="/admin/orders"
+                    className="shrink-0 text-[10.5px] leading-[14px] font-medium text-[#00786f] hover:underline"
+                >
+                    View all
+                </Link>
             </div>
 
             {/* Table */}

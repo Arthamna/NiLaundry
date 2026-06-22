@@ -1,6 +1,9 @@
 // Demo payments data mirrors the Figma "Payments" design (node 496:9134) one-for-one.
 
-export type PaymentMethod = 'QRIS' | 'BANK' | 'GOPAY' | 'OVO';
+// Raw `pembayaran.metode_pembayaran` value (e.g. "qris", "transfer_bank").
+// Kept as a free string because the backend enum grows independently of the UI;
+// use `formatPaymentMethod` / `paymentMethodColor` for display.
+export type PaymentMethod = string;
 
 export interface Payment {
     id: string;

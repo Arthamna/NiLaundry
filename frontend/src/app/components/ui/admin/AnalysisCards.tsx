@@ -1,7 +1,18 @@
 import React from 'react';
 import { CheckCircle2, TrendingUp } from 'lucide-react';
 
-import { METHOD_SHARES } from '@/components/ui/admin/paymentData';
+import { METHOD_SHARES, MethodShare } from '@/components/ui/admin/paymentData';
+import { formatPaymentMethod } from '@/components/ui/branch/format';
+
+interface AnalysisCardsProps {
+    /** Payment-method distribution for the donut + legend. Falls back to the
+     *  Figma sample when not supplied. */
+    shares?: MethodShare[];
+    totalPaid?: string;
+    totalPaidSub?: string;
+    average?: string;
+    averageSub?: string;
+}
 
 // Summary card with leading icon (Figma nodes 496:9147 / 466:5960).
 function SummaryCard({
@@ -32,9 +43,9 @@ function SummaryCard({
 }
 
 // Builds the conic-gradient stops for the method donut, clockwise from 12 o'clock.
-function buildDonutGradient(): string {
+function buildDonutGradient(shares: MethodShare[]): string {
     let cursor = 0;
-    const stops = METHOD_SHARES.map((share) => {
+    const stops = shares.map((share) => {
         const start = cursor;
         cursor += share.percent;
         return `${share.color} ${start}% ${cursor}%`;
@@ -43,7 +54,8 @@ function buildDonutGradient(): string {
 }
 
 // "Method" breakdown card with donut + legend (Figma node 496:9160).
-function MethodCard() {
+function MethodCard({ shares }: { shares: MethodShare[] }) {
+    const total = shares.reduce((s, m) => s + m.count, 0);
     return (
         <div className="flex flex-col gap-[16px] rounded-[12px] border border-[#e2e8f0] bg-white p-[24px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
             <span className="text-[15px] leading-[22.5px] font-semibold text-[#0f172b]">Method</span>
@@ -51,23 +63,25 @@ function MethodCard() {
                 {/* Donut */}
                 <div
                     className="relative flex size-[120px] shrink-0 items-center justify-center rounded-full"
-                    style={{ background: buildDonutGradient() }}
+                    style={{ background: buildDonutGradient(shares) }}
                 >
                     <div className="flex size-[78px] flex-col items-center justify-center rounded-full bg-white">
                         <span className="text-[9.255px] leading-none text-[#64748b]">Total</span>
-                        <span className="text-[18px] leading-tight font-bold text-[#0f172b]">100</span>
+                        <span className="text-[18px] leading-tight font-bold text-[#0f172b]">{total}</span>
                     </div>
                 </div>
 
                 {/* Legend */}
                 <div className="flex flex-1 flex-col gap-[8px]">
-                    {METHOD_SHARES.map((share) => (
+                    {shares.map((share) => (
                         <div key={share.method} className="flex items-center gap-[8px]">
                             <span
                                 className="size-[8px] shrink-0 rounded-full"
                                 style={{ backgroundColor: share.color }}
                             />
-                            <span className="flex-1 text-[12px] leading-[16px] text-[#45556c]">{share.method}</span>
+                            <span className="flex-1 text-[12px] leading-[16px] text-[#45556c]">
+                                {formatPaymentMethod(share.method)}
+                            </span>
                             <span className="text-[12px] leading-[16px] font-semibold text-[#0f172b]">
                                 {share.percent}%
                             </span>
@@ -82,23 +96,29 @@ function MethodCard() {
     );
 }
 
-// Three analysis cards (Total Paid / Rata-rata / Method) shared by Payments and the branch Performance tab.
-export default function AnalysisCards() {
+// Three analysis cards (Total Paid / Average / Method) shared by Payments and the branch Performance tab.
+export default function AnalysisCards({
+    shares = METHOD_SHARES,
+    totalPaid = 'Rp 0',
+    totalPaidSub = '0 successful transactions',
+    average = 'Rp 0',
+    averageSub = 'average per invoice',
+}: AnalysisCardsProps = {}) {
     return (
         <div className="grid grid-cols-[1fr_1fr_1.15fr] gap-[24px]">
             <SummaryCard
                 icon={<CheckCircle2 size={18} />}
                 label="Total Paid"
-                value="Rp 12.0M"
-                sub="452 successful transactions"
+                value={totalPaid}
+                sub={totalPaidSub}
             />
             <SummaryCard
                 icon={<TrendingUp size={18} />}
-                label="Rata-rata / Transaksi"
-                value="Rp 86.250"
-                sub="per invoice rata-rata"
+                label="Average / Transaction"
+                value={average}
+                sub={averageSub}
             />
-            <MethodCard />
+            <MethodCard shares={shares} />
         </div>
     );
 }

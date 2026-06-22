@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export interface ServiceMixRow {
     label: string;
@@ -19,11 +20,14 @@ export default function ServiceMixCard({ rows }: ServiceMixCardProps) {
             <div className="flex w-full items-start justify-between border-b border-[#e2e8f0] px-[17.5px] pt-[14px] pb-[15px]">
                 <div className="flex flex-col">
                     <h3 className="text-[15px] leading-[22.5px] font-semibold text-[#0f172b]">Service Mix</h3>
-                    <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">Distribusi 30 hari</p>
+                    <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">Last 30 days</p>
                 </div>
-                <button type="button" className="text-[10.5px] leading-[14px] font-medium text-[#00786f]">
+                <Link
+                    href="/admin/services"
+                    className="shrink-0 text-[10.5px] leading-[14px] font-medium text-[#00786f] hover:underline"
+                >
                     Detail
-                </button>
+                </Link>
             </div>
 
             {/* Bars */}

@@ -1,6 +1,6 @@
 // Demo orders data mirrors the Figma "Orders" design (node 120:4975 / 488:8408) one-for-one.
 
-export type OrderStatus = 'Pickup' | 'Processing' | 'Delivery' | 'Completed';
+export type OrderStatus = 'Pickup' | 'Processing' | 'Delivery' | 'Completed' | 'Cancelled';
 
 export interface Order {
     id: string;
@@ -27,6 +27,7 @@ export const STATUS_STYLES: Record<OrderStatus, { bg: string; border: string; te
     Processing: { bg: '#fef3c6', border: '#fee685', text: '#f59e0b' },
     Delivery: { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
     Completed: { bg: '#9cf2e8', border: '#80d5cb', text: '#0f766e' },
+    Cancelled: { bg: '#f3f4f6', border: '#d1d5db', text: '#6b7280' },
 };
 
 export const STATUS_FILTERS: Array<'All' | OrderStatus> = [
@@ -35,7 +36,31 @@ export const STATUS_FILTERS: Array<'All' | OrderStatus> = [
     'Processing',
     'Delivery',
     'Completed',
+    'Cancelled',
 ];
+
+/** Map a backend status (lowercase, e.g. "cancelled"/"selesai") to the
+ *  capitalized OrderStatus this table renders. Mirrors branch/format.ts. */
+export function toOrderStatus(raw: string): OrderStatus {
+    switch (raw.trim().toLowerCase()) {
+        case 'pickup':
+        case 'baru':
+        case 'menunggu':
+            return 'Pickup';
+        case 'delivery':
+        case 'diambil':
+            return 'Delivery';
+        case 'completed':
+        case 'selesai':
+            return 'Completed';
+        case 'cancelled':
+        case 'canceled':
+        case 'dibatalkan':
+            return 'Cancelled';
+        default:
+            return 'Processing';
+    }
+}
 
 export interface OrderStat {
     label: string;

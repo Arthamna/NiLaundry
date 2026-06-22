@@ -1,7 +1,9 @@
 import React from 'react';
+import Link from 'next/link';
 import { Ticket } from 'lucide-react';
 
 export interface VoucherCardData {
+    id: number;
     code: string;
     description: string;
     /** Display value, e.g. "20%", "Free Ship", "Rp 50k". */
@@ -77,9 +79,12 @@ export default function VoucherCard({ voucher }: { voucher: VoucherCardData }) {
                 </div>
                 <div className="flex items-center justify-between pt-[10.5px]">
                     <span className="text-[11px] leading-[16.5px] text-[#62748e]">Expires {voucher.expires}</span>
-                    <button type="button" className="text-[14px] leading-[21px] font-semibold text-[#00786f]">
-                        Details →
-                    </button>
+                    <Link
+                        href={`/admin/vouchers/${voucher.id}`}
+                        className="text-[14px] leading-[21px] font-semibold text-[#00786f] hover:underline"
+                    >
+                        Details
+                    </Link>
                 </div>
             </div>
         </div>

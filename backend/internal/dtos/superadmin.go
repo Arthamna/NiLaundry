@@ -112,6 +112,15 @@ type CreateVoucherRequest struct {
 	Kuota         int       `json:"kuota" binding:"required"`
 }
 
+type UpdateVoucherRequest struct {
+	Kode          *string    `json:"kode"`
+	TipeDiskon    *string    `json:"tipeDiskon"`
+	NilaiDiskon   *float64   `json:"nilaiDiskon"`
+	MinPembelian  *float64   `json:"minPembelian"`
+	BerlakuHingga *time.Time `json:"berlakuHingga"`
+	Kuota         *int       `json:"kuota"`
+}
+
 // --- Staffs -----------------------------------------------------------------
 
 type SuperPegawaiResponse struct {

@@ -27,16 +27,21 @@ type SuperadminService interface {
 	ListVouchers(ctx context.Context) ([]dtos.SuperVoucherResponse, error)
 	VouchersStatistik(ctx context.Context) (*dtos.SuperVoucherStatResponse, error)
 	CreateVoucher(ctx context.Context, req dtos.CreateVoucherRequest) (*dtos.SuperVoucherResponse, error)
+	GetVoucher(ctx context.Context, id int) (*dtos.SuperVoucherResponse, error)
+	UpdateVoucher(ctx context.Context, id int, req dtos.UpdateVoucherRequest) (*dtos.SuperVoucherResponse, error)
+	DeleteVoucher(ctx context.Context, id int) error
 
 	// Staffs
 	ListPegawai(ctx context.Context) ([]dtos.SuperPegawaiResponse, error)
 	CreatePegawai(ctx context.Context, req dtos.CreatePegawaiRequest) (*dtos.SuperPegawaiResponse, error)
 	UpdatePegawai(ctx context.Context, id int, req dtos.UpdatePegawaiRequest) (*dtos.SuperPegawaiResponse, error)
+	DeletePegawai(ctx context.Context, id int) error
 
 	// Couriers
 	ListKurir(ctx context.Context) ([]dtos.SuperKurirResponse, error)
 	CreateKurir(ctx context.Context, req dtos.CreateKurirRequest) (*dtos.SuperKurirResponse, error)
 	UpdateKurir(ctx context.Context, id int, req dtos.UpdateKurirRequest) (*dtos.SuperKurirResponse, error)
+	DeleteKurir(ctx context.Context, id int) error
 	ListTipeKendaraan(ctx context.Context) ([]dtos.SuperTipeKendaraanResponse, error)
 
 	// Branches
@@ -47,6 +52,7 @@ type SuperadminService interface {
 	BranchReviews(ctx context.Context, cabangID, page, limit int) ([]dtos.SuperBranchReviewResponse, error)
 	CreateCabang(ctx context.Context, req dtos.CreateCabangRequest) (*dtos.SuperCabangResponse, error)
 	UpdateCabang(ctx context.Context, id int, req dtos.UpdateCabangRequest) (*dtos.SuperCabangResponse, error)
+	DeleteCabang(ctx context.Context, id int) error
 	CreateTarif(ctx context.Context, cabangID int, req dtos.CreateTarifRequest) error
 	UpdateTarif(ctx context.Context, cabangID int, req dtos.UpdateTarifRequest) error
 
@@ -260,6 +266,44 @@ func (s *superadminService) CreateVoucher(ctx context.Context, req dtos.CreateVo
 	return &out, nil
 }
 
+func (s *superadminService) GetVoucher(ctx context.Context, id int) (*dtos.SuperVoucherResponse, error) {
+	v, err := s.repo.GetVoucher(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, common.NewAppError(http.StatusNotFound, "voucher not found")
+	}
+	out := mapVoucher(*v)
+	return &out, nil
+}
+
+func (s *superadminService) UpdateVoucher(ctx context.Context, id int, req dtos.UpdateVoucherRequest) (*dtos.SuperVoucherResponse, error) {
+	v, err := s.repo.UpdateVoucher(ctx, id, repositories.VoucherUpdate{
+		Kode: req.Kode, TipeDiskon: req.TipeDiskon, NilaiDiskon: req.NilaiDiskon,
+		MinPembelian: req.MinPembelian, BerlakuHingga: req.BerlakuHingga, Kuota: req.Kuota,
+	})
+	if err != nil {
+		return nil, common.NewAppError(http.StatusBadRequest, err.Error())
+	}
+	if v == nil {
+		return nil, common.NewAppError(http.StatusNotFound, "voucher not found")
+	}
+	out := mapVoucher(*v)
+	return &out, nil
+}
+
+func (s *superadminService) DeleteVoucher(ctx context.Context, id int) error {
+	ok, err := s.repo.SoftDeleteVoucher(ctx, id)
+	if err != nil {
+		return common.NewAppError(http.StatusBadRequest, err.Error())
+	}
+	if !ok {
+		return common.NewAppError(http.StatusNotFound, "voucher not found")
+	}
+	return nil
+}
+
 // Staffs --------------------------------------------------------------------
 
 func (s *superadminService) ListPegawai(ctx context.Context) ([]dtos.SuperPegawaiResponse, error) {
@@ -308,6 +352,17 @@ func (s *superadminService) UpdatePegawai(ctx context.Context, id int, req dtos.
 	return &out, nil
 }
 
+func (s *superadminService) DeletePegawai(ctx context.Context, id int) error {
+	ok, err := s.repo.SoftDeletePegawai(ctx, id)
+	if err != nil {
+		return common.NewAppError(http.StatusBadRequest, err.Error())
+	}
+	if !ok {
+		return common.NewAppError(http.StatusNotFound, "pegawai not found")
+	}
+	return nil
+}
+
 // Couriers ------------------------------------------------------------------
 
 func (s *superadminService) ListKurir(ctx context.Context) ([]dtos.SuperKurirResponse, error) {
@@ -352,6 +407,17 @@ func (s *superadminService) UpdateKurir(ctx context.Context, id int, req dtos.Up
 	}
 	out := mapKurir(*k)
 	return &out, nil
+}
+
+func (s *superadminService) DeleteKurir(ctx context.Context, id int) error {
+	ok, err := s.repo.SoftDeleteKurir(ctx, id)
+	if err != nil {
+		return common.NewAppError(http.StatusBadRequest, err.Error())
+	}
+	if !ok {
+		return common.NewAppError(http.StatusNotFound, "kurir not found")
+	}
+	return nil
 }
 
 func (s *superadminService) ListTipeKendaraan(ctx context.Context) ([]dtos.SuperTipeKendaraanResponse, error) {
@@ -474,6 +540,17 @@ func (s *superadminService) UpdateCabang(ctx context.Context, id int, req dtos.U
 	}
 	out := mapCabang(*r)
 	return &out, nil
+}
+
+func (s *superadminService) DeleteCabang(ctx context.Context, id int) error {
+	ok, err := s.repo.SoftDeleteCabang(ctx, id)
+	if err != nil {
+		return common.NewAppError(http.StatusBadRequest, err.Error())
+	}
+	if !ok {
+		return common.NewAppError(http.StatusNotFound, "cabang not found")
+	}
+	return nil
 }
 
 func (s *superadminService) CreateTarif(ctx context.Context, cabangID int, req dtos.CreateTarifRequest) error {

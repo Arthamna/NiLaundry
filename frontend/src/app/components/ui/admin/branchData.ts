@@ -21,6 +21,11 @@ export interface BranchService {
     /** Price per unit (raw number string as shown in the table), e.g. "50000". */
     price: string;
     description: string;
+    /** Backend identifiers (present when sourced from the API) used to edit the tariff. */
+    idTarif?: number;
+    idLayanan?: number;
+    /** Numeric price per unit for editing. */
+    hargaValue?: number;
 }
 
 export interface BranchReview {

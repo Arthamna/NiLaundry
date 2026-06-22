@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, Package, Star } from 'lucide-react';
 
 import AdminTopBar from '@/components/ui/admin/AdminTopBar';
@@ -7,67 +9,143 @@ import ServiceMixCard, { ServiceMixRow } from '@/components/ui/admin/ServiceMixC
 import PaymentMixCard, { PaymentMixRow } from '@/components/ui/admin/PaymentMixCard';
 import LiveOrdersTable, { LiveOrderRow } from '@/components/ui/admin/LiveOrdersTable';
 import TopBranchesCard, { TopBranchRow } from '@/components/ui/admin/TopBranchesCard';
+import { superadminApi, getApiErrorMessage } from '@/lib/api';
+import {
+    formatIDR,
+    formatIDRShort,
+    formatDateShort,
+    initialsOf,
+    mapOrderStatus,
+    formatPaymentMethod,
+    paymentMethodColor,
+} from '@/components/ui/branch/format';
 
-// Demo data mirrors the Figma design (node 120:4219) one-for-one.
-const SERVICE_MIX: ServiceMixRow[] = [
-    { label: 'Cuci Setrika Reguler', percent: 38, color: '#0f766e' },
-    { label: 'Cuci Express', percent: 20, color: '#14b8a6' },
-    { label: 'Dry Clean', percent: 15, color: '#0ea5e9' },
-    { label: 'Sepatu', percent: 10, color: '#6366f1' },
-    { label: 'Bed Cover', percent: 7, color: '#a855f7' },
-    { label: 'Lainnya', percent: 10, color: '#94a3b8' },
-];
-
-const PAYMENT_MIX: PaymentMixRow[] = [
-    { label: 'QRIS', amount: 'Rp7,1jt', color: '#00bba7' },
-    { label: 'Bank', amount: 'Rp3,2jt', color: '#ffb900' },
-    { label: 'Gopay', amount: 'Rp3,2jt', color: '#2b7fff' },
-    { label: 'Ovo', amount: 'Rp2,1jt', color: '#ad46ff' },
-];
-
-const LIVE_ORDERS: LiveOrderRow[] = [
-    { orderId: '#ORD-9082', customer: 'Anita Smith', branch: 'Tebet', status: 'delivery', deadline: 'Today, 14:00', total: 'Rp 45.000' },
-    { orderId: '#ORD-9081', customer: 'Budi Kurniawan', branch: 'Kemang', status: 'completed', deadline: 'Tomorrow, 10:00', total: 'Rp 145.000' },
-    { orderId: '#ORD-9080', customer: 'Citra Dewi', branch: 'BSD', status: 'processing', deadline: 'Overdue (2h)', isOverdue: true, total: 'Rp 62.000' },
-    { orderId: '#ORD-9082', customer: 'Anita Smith', branch: 'Tebet', status: 'pickup', deadline: 'Today, 14:00', total: 'Rp 40.000' },
-    { orderId: '#ORD-9081', customer: 'Budi Kurniawan', branch: 'Bekasi', status: 'completed', deadline: 'Tomorrow, 10:00', total: 'Rp 220.000' },
-    { orderId: '#ORD-9082', customer: 'Anita Smith', branch: 'BSD', status: 'delivery', deadline: 'Today, 14:00', total: 'Rp 75.000' },
-];
-
-const TOP_BRANCHES: TopBranchRow[] = [
-    { initials: 'TE', name: 'Tebet', percentOfTarget: 92, revenue: 'Rp48,2jt' },
-    { initials: 'KE', name: 'Kemang', percentOfTarget: 85, revenue: 'Rp41,5jt' },
-    { initials: 'BS', name: 'BSD', percentOfTarget: 78, revenue: 'Rp38,9jt' },
-    { initials: 'BE', name: 'Bekasi', percentOfTarget: 70, revenue: 'Rp31,1jt' },
-    { initials: 'BE', name: 'Bekasi', percentOfTarget: 70, revenue: 'Rp31,1jt' },
-    { initials: 'BE', name: 'Bekasi', percentOfTarget: 70, revenue: 'Rp31,1jt' },
-];
+// Color palette assigned by index to the Service Mix bars / Payment Mix tiles.
+const MIX_COLORS = ['#0f766e', '#14b8a6', '#0ea5e9', '#6366f1', '#a855f7', '#94a3b8'];
 
 export default function AdminDashboardPage() {
+    const [umum, setUmum] = useState<superadminApi.SuperStatistikUmum | null>(null);
+    const [services, setServices] = useState<superadminApi.SuperStatistikLayanan[]>([]);
+    const [payMix, setPayMix] = useState<superadminApi.SuperPaymentMix[]>([]);
+    const [topCabang, setTopCabang] = useState<superadminApi.SuperTopCabang[]>([]);
+    const [liveOrders, setLiveOrders] = useState<superadminApi.SuperPesanan[]>([]);
+    const [nowTs, setNowTs] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const ac = new AbortController();
+        setNowTs(Date.now());
+        Promise.all([
+            superadminApi.getStatistikUmum(ac.signal),
+            superadminApi.getStatistikLayanan(ac.signal),
+            superadminApi.getPaymentMix(ac.signal),
+            superadminApi.getTopCabang(ac.signal),
+            superadminApi.listPesanan({ limit: 6 }, ac.signal),
+        ])
+            .then(([u, s, p, t, o]) => {
+                setUmum(u);
+                setServices(s ?? []);
+                setPayMix(p ?? []);
+                setTopCabang(t ?? []);
+                setLiveOrders(o ?? []);
+            })
+            .catch((err) => {
+                if (!ac.signal.aborted) setError(getApiErrorMessage(err));
+            })
+            .finally(() => {
+                if (!ac.signal.aborted) setLoading(false);
+            });
+        return () => ac.abort();
+    }, []);
+
+    const totalServiceOrders = services.reduce((sum, s) => sum + s.totalPesanan, 0) || 1;
+    const serviceMix: ServiceMixRow[] = services.slice(0, 6).map((s, i) => ({
+        label: s.namaLayanan,
+        percent: Math.round((s.totalPesanan / totalServiceOrders) * 100),
+        color: MIX_COLORS[i % MIX_COLORS.length],
+    }));
+
+    const paymentMix: PaymentMixRow[] = payMix.map((p) => ({
+        label: formatPaymentMethod(p.metode),
+        amount: String(p.totalEntries),
+        color: paymentMethodColor(p.metode),
+    }));
+
+    const liveRows: LiveOrderRow[] = liveOrders
+        .map((o) => ({ o, status: mapOrderStatus(o.status) }))
+        .filter(({ status }) => status !== 'cancelled')
+        .map(({ o, status }) => {
+            const est = formatDateShort(o.estimasiSelesai);
+            const overdue =
+                nowTs > 0 && new Date(o.estimasiSelesai).getTime() < nowTs && status !== 'completed';
+            return {
+                orderId: `#ORD-${String(o.id).padStart(4, '0')}`,
+                customer: o.namaPelanggan,
+                branch: o.namaCabang,
+                status: status as 'pickup' | 'processing' | 'delivery' | 'completed',
+                deadline: overdue ? `Overdue · ${est}` : est,
+                isOverdue: overdue,
+                total: formatIDR(o.totalHarga),
+            };
+        });
+
+    const maxRevenue = Math.max(...topCabang.map((b) => b.totalRevenue), 1);
+    const topBranches: TopBranchRow[] = topCabang.slice(0, 6).map((b) => ({
+        initials: initialsOf(b.namaCabang),
+        name: b.namaCabang,
+        percentOfTarget: Math.round((b.totalRevenue / maxRevenue) * 100),
+        revenue: formatIDRShort(b.totalRevenue),
+    }));
+
     return (
         <>
             <AdminTopBar title="Dashboard" role="Super Admin" />
 
             <div className="flex w-full flex-col gap-[20px] p-[40px]">
+                {error && (
+                    <p className="rounded-[12px] border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-[14px] text-[#b91c1c]">
+                        {error}
+                    </p>
+                )}
+
                 {/* KPI row */}
                 <div className="grid grid-cols-4 gap-[20px]">
-                    <AdminKpiCard label="Revenue Today" value="Rp12,4jt" icon={<DollarSign size={16} />} />
-                    <AdminKpiCard label="Revenue This Month" value="Rp184jt" icon={<TrendingUp size={16} />} />
-                    <AdminKpiCard label="Orders Today" value="142" icon={<Package size={16} />} />
-                    <AdminKpiCard label="Average Rating" value="4.7" icon={<Star size={16} />} />
+                    <AdminKpiCard
+                        label="Revenue Today"
+                        value={umum ? formatIDRShort(umum.revenueToday) : '—'}
+                        icon={<DollarSign size={16} />}
+                    />
+                    <AdminKpiCard
+                        label="Revenue This Month"
+                        value={umum ? formatIDRShort(umum.revenueThisMonth) : '—'}
+                        icon={<TrendingUp size={16} />}
+                    />
+                    <AdminKpiCard
+                        label="Orders Today"
+                        value={umum ? String(umum.orderToday) : '—'}
+                        icon={<Package size={16} />}
+                    />
+                    <AdminKpiCard
+                        label="Average Rating"
+                        value={umum ? umum.averageRating.toFixed(1) : '—'}
+                        icon={<Star size={16} />}
+                    />
                 </div>
 
                 {/* Service Mix + Payment Mix */}
                 <div className="flex w-full items-stretch gap-[20px]">
-                    <ServiceMixCard rows={SERVICE_MIX} />
-                    <PaymentMixCard rows={PAYMENT_MIX} />
+                    <ServiceMixCard rows={serviceMix} />
+                    <PaymentMixCard rows={paymentMix} />
                 </div>
 
                 {/* Live Orders + Top Branches */}
                 <div className="flex w-full items-start gap-[20px]">
-                    <LiveOrdersTable rows={LIVE_ORDERS} />
-                    <TopBranchesCard rows={TOP_BRANCHES} />
+                    <LiveOrdersTable rows={liveRows} />
+                    <TopBranchesCard rows={topBranches} />
                 </div>
+
+                {loading && <p className="text-[13px] text-[#6e7977]">Loading…</p>}
             </div>
         </>
     );

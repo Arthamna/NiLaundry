@@ -10,6 +10,16 @@ export function formatIDR(n: number): string {
     return `Rp ${RUPIAH.format(Math.round(n))}`;
 }
 
+/** Compact rupiah for KPI tiles: 12_400_000 -> "Rp 12,4jt", 184_000_000 -> "Rp 184jt". */
+export function formatIDRShort(n: number): string {
+    const compact = (v: number, suffix: string): string =>
+        `Rp ${v.toFixed(1).replace(/\.0$/, '').replace('.', ',')}${suffix}`;
+    if (n >= 1_000_000_000) return compact(n / 1_000_000_000, 'M');
+    if (n >= 1_000_000) return compact(n / 1_000_000, 'jt');
+    if (n >= 1_000) return compact(n / 1_000, 'rb');
+    return formatIDR(n);
+}
+
 export function formatOrderId(id: number): string {
     return `#ORD-${String(id).padStart(4, '0')}`;
 }
@@ -108,4 +118,45 @@ export function mapOrderStatus(raw: string): OrderStatus {
  */
 export function uiStatusToBackend(ui: OrderStatus): string {
     return ui;
+}
+
+/** Display label + stable brand color for a raw payment method enum. */
+export interface PaymentMethodMeta {
+    label: string;
+    color: string;
+}
+
+// Maps raw `pembayaran.metode_pembayaran` values to a friendly label and a
+// stable accent color, so the same method looks identical across the dashboard,
+// the payments table, and the donut legend.
+// The four supported payment methods. `transfer_bank` is kept as a defensive
+// alias for any legacy rows that escaped normalization.
+const PAYMENT_METHOD_META: Record<string, PaymentMethodMeta> = {
+    qris: { label: 'QRIS', color: '#0f766e' },
+    bank: { label: 'Bank', color: '#0ea5e9' },
+    transfer_bank: { label: 'Bank', color: '#0ea5e9' },
+    gopay: { label: 'GoPay', color: '#00aed6' },
+    ovo: { label: 'OVO', color: '#a855f7' },
+};
+
+function prettifyMethod(raw: string): string {
+    return raw
+        .trim()
+        .split(/[_\s]+/)
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+}
+
+export function paymentMethodMeta(raw: string): PaymentMethodMeta {
+    const key = (raw ?? '').trim().toLowerCase();
+    return PAYMENT_METHOD_META[key] ?? { label: prettifyMethod(raw || '—'), color: '#94a3b8' };
+}
+
+export function formatPaymentMethod(raw: string): string {
+    return paymentMethodMeta(raw).label;
+}
+
+export function paymentMethodColor(raw: string): string {
+    return paymentMethodMeta(raw).color;
 }

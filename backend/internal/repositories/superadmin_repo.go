@@ -33,21 +33,27 @@ type SuperadminRepository interface {
 	ListVouchers(ctx context.Context) ([]VoucherRow, error)
 	VouchersStatistik(ctx context.Context) (VoucherStatRow, error)
 	CreateVoucher(ctx context.Context, v VoucherCreate) (*VoucherRow, error)
+	GetVoucher(ctx context.Context, id int) (*VoucherRow, error)
+	UpdateVoucher(ctx context.Context, id int, v VoucherUpdate) (*VoucherRow, error)
+	SoftDeleteVoucher(ctx context.Context, id int) (bool, error)
 
 	// Staffs
 	ListPegawaiAll(ctx context.Context) ([]PegawaiJoinRow, error)
 	CreatePegawai(ctx context.Context, p PegawaiCreate) (*PegawaiJoinRow, error)
 	UpdatePegawai(ctx context.Context, id int, p PegawaiUpdate) (*PegawaiJoinRow, error)
+	SoftDeletePegawai(ctx context.Context, id int) (bool, error)
 
 	// Couriers
 	ListKurirAll(ctx context.Context) ([]KurirJoinRow, error)
 	CreateKurir(ctx context.Context, k KurirCreate) (*KurirJoinRow, error)
 	UpdateKurir(ctx context.Context, id int, k KurirUpdate) (*KurirJoinRow, error)
+	SoftDeleteKurir(ctx context.Context, id int) (bool, error)
 	ListTipeKendaraan(ctx context.Context) ([]TipeKendaraanRow, error)
 
 	// Branches
 	ListCabangAll(ctx context.Context) ([]CabangRow, error)
 	GetCabangByID(ctx context.Context, id int) (*CabangRow, error)
+	SoftDeleteCabang(ctx context.Context, id int) (bool, error)
 	BranchPerformance(ctx context.Context) ([]CabangPerfRow, error)
 	BranchServices(ctx context.Context, cabangID int) ([]CabangServiceRow, error)
 	BranchReviews(ctx context.Context, cabangID, limit, offset int) ([]BranchReviewRow2, error)
@@ -152,6 +158,15 @@ type VoucherCreate struct {
 	MinPembelian  float64
 	BerlakuHingga time.Time
 	Kuota         int
+}
+
+type VoucherUpdate struct {
+	Kode          *string
+	TipeDiskon    *string
+	NilaiDiskon   *float64
+	MinPembelian  *float64
+	BerlakuHingga *time.Time
+	Kuota         *int
 }
 
 type PegawaiJoinRow struct {
@@ -320,20 +335,20 @@ func (r *superadminRepo) StatistikUmum(ctx context.Context) (SuperStatRow, error
 			COALESCE((
 				SELECT SUM(b.jumlah_pembayaran)::float8
 				FROM pembayaran b
-				WHERE b.status_pembayaran = 'Lunas'
+				WHERE LOWER(b.status_pembayaran) = 'lunas'
 				  AND b.waktu_pembayaran::date = CURRENT_DATE
 			), 0) AS revenue_today,
 			COALESCE((
 				SELECT SUM(b.jumlah_pembayaran)::float8
 				FROM pembayaran b
-				WHERE b.status_pembayaran = 'Lunas'
+				WHERE LOWER(b.status_pembayaran) = 'lunas'
 				  AND date_trunc('month', b.waktu_pembayaran) = date_trunc('month', CURRENT_DATE)
 			), 0) AS revenue_this_month,
 			COALESCE((
 				SELECT COUNT(DISTINCT p.id_pesanan)::int
 				FROM pesanan p
 				JOIN pembayaran b ON b.pesanan_id_pesanan = p.id_pesanan
-				WHERE b.status_pembayaran = 'Lunas'
+				WHERE LOWER(b.status_pembayaran) = 'lunas'
 				  AND b.waktu_pembayaran::date = CURRENT_DATE
 			), 0) AS order_today,
 			COALESCE((
@@ -415,7 +430,7 @@ func (r *superadminRepo) StatistikPembayaranToday(ctx context.Context) ([]Paymen
 		WITH total_entries AS (
 			SELECT COUNT(*)::numeric AS total_count
 			FROM pembayaran x
-			WHERE x.status_pembayaran = 'Lunas'
+			WHERE LOWER(x.status_pembayaran) = 'lunas'
 			  AND x.waktu_pembayaran::date = CURRENT_DATE
 		)
 		SELECT
@@ -426,7 +441,7 @@ func (r *superadminRepo) StatistikPembayaranToday(ctx context.Context) ([]Paymen
 				2
 			)::float8 AS persentase
 		FROM pembayaran b
-		WHERE b.status_pembayaran = 'Lunas'
+		WHERE LOWER(b.status_pembayaran) = 'lunas'
 		  AND b.waktu_pembayaran::date = CURRENT_DATE
 		GROUP BY b.metode_pembayaran
 		ORDER BY total_entries DESC, b.metode_pembayaran ASC`
@@ -540,6 +555,7 @@ func (r *superadminRepo) ListVouchers(ctx context.Context) ([]VoucherRow, error)
 		SELECT id_voucher, kode_voucher, tipe_diskon_voucher, nilai_diskon_voucher,
 		       min_pembelian_voucher, berlaku_hingga_voucher, kuota_voucher, terpakai_voucher
 		FROM voucher
+		WHERE deleted_at IS NULL
 		ORDER BY id_voucher DESC`
 	var rows []VoucherRow
 	if err := r.db.WithContext(ctx).Raw(q).Scan(&rows).Error; err != nil {
@@ -559,7 +575,8 @@ func (r *superadminRepo) VouchersStatistik(ctx context.Context) (VoucherStatRow,
 			COALESCE(EXTRACT(EPOCH FROM (MIN(v.berlaku_hingga_voucher) - NOW())) / 3600.0, 0)::float8 AS nearest_expiry_hours
 		FROM voucher v
 		LEFT JOIN voucher_pelanggan vp ON vp.voucher_id_voucher = v.id_voucher
-		WHERE v.berlaku_hingga_voucher >= NOW()`
+		WHERE v.berlaku_hingga_voucher >= NOW()
+		  AND v.deleted_at IS NULL`
 	var out VoucherStatRow
 	if err := r.db.WithContext(ctx).Raw(q).Scan(&out).Error; err != nil {
 		return VoucherStatRow{}, err
@@ -585,6 +602,55 @@ func (r *superadminRepo) CreateVoucher(ctx context.Context, v VoucherCreate) (*V
 	return &out, nil
 }
 
+func (r *superadminRepo) GetVoucher(ctx context.Context, id int) (*VoucherRow, error) {
+	return r.findVoucherByID(ctx, id)
+}
+
+func (r *superadminRepo) findVoucherByID(ctx context.Context, id int) (*VoucherRow, error) {
+	const q = `
+		SELECT id_voucher, kode_voucher, tipe_diskon_voucher, nilai_diskon_voucher,
+		       min_pembelian_voucher, berlaku_hingga_voucher, kuota_voucher, terpakai_voucher
+		FROM voucher WHERE id_voucher = ? AND deleted_at IS NULL`
+	var row VoucherRow
+	if err := r.db.WithContext(ctx).Raw(q, id).Scan(&row).Error; err != nil {
+		return nil, err
+	}
+	if row.ID == 0 {
+		return nil, nil
+	}
+	return &row, nil
+}
+
+func (r *superadminRepo) UpdateVoucher(ctx context.Context, id int, v VoucherUpdate) (*VoucherRow, error) {
+	const q = `
+		UPDATE voucher SET
+			kode_voucher = COALESCE(?, kode_voucher),
+			tipe_diskon_voucher = COALESCE(?, tipe_diskon_voucher),
+			nilai_diskon_voucher = COALESCE(?, nilai_diskon_voucher),
+			min_pembelian_voucher = COALESCE(?, min_pembelian_voucher),
+			berlaku_hingga_voucher = COALESCE(?, berlaku_hingga_voucher),
+			kuota_voucher = COALESCE(?, kuota_voucher)
+		WHERE id_voucher = ?`
+	if err := r.db.WithContext(ctx).Exec(q,
+		v.Kode, v.TipeDiskon, v.NilaiDiskon, v.MinPembelian, v.BerlakuHingga, v.Kuota, id,
+	).Error; err != nil {
+		return nil, err
+	}
+	return r.findVoucherByID(ctx, id)
+}
+
+// SoftDeleteVoucher marks a voucher deleted. Returns false when no active row
+// matched (already deleted / nonexistent). Soft delete keeps historical orders
+// and customer claims that reference the voucher intact.
+func (r *superadminRepo) SoftDeleteVoucher(ctx context.Context, id int) (bool, error) {
+	res := r.db.WithContext(ctx).Exec(
+		`UPDATE voucher SET deleted_at = NOW() WHERE id_voucher = ? AND deleted_at IS NULL`, id)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}
+
 // Staffs --------------------------------------------------------------------
 
 func (r *superadminRepo) ListPegawaiAll(ctx context.Context) ([]PegawaiJoinRow, error) {
@@ -593,6 +659,7 @@ func (r *superadminRepo) ListPegawaiAll(ctx context.Context) ([]PegawaiJoinRow, 
 		       pg.alamat_pegawai, pg.cabang_laundry_id_cabang, cl.nama_cabang
 		FROM pegawai pg
 		LEFT JOIN cabang_laundry cl ON cl.id_cabang = pg.cabang_laundry_id_cabang
+		WHERE pg.deleted_at IS NULL
 		ORDER BY pg.id_pegawai DESC`
 	var rows []PegawaiJoinRow
 	if err := r.db.WithContext(ctx).Raw(q).Scan(&rows).Error; err != nil {
@@ -642,7 +709,7 @@ func (r *superadminRepo) findPegawaiByID(ctx context.Context, id int) (*PegawaiJ
 		       pg.alamat_pegawai, pg.cabang_laundry_id_cabang, cl.nama_cabang
 		FROM pegawai pg
 		LEFT JOIN cabang_laundry cl ON cl.id_cabang = pg.cabang_laundry_id_cabang
-		WHERE pg.id_pegawai = ?`
+		WHERE pg.id_pegawai = ? AND pg.deleted_at IS NULL`
 	var row PegawaiJoinRow
 	if err := r.db.WithContext(ctx).Raw(q, id).Scan(&row).Error; err != nil {
 		return nil, err
@@ -653,6 +720,17 @@ func (r *superadminRepo) findPegawaiByID(ctx context.Context, id int) (*PegawaiJ
 	return &row, nil
 }
 
+// SoftDeletePegawai marks a staff row deleted. Returns false when no active row
+// matched (already deleted / nonexistent). Historical orders keep referencing it.
+func (r *superadminRepo) SoftDeletePegawai(ctx context.Context, id int) (bool, error) {
+	res := r.db.WithContext(ctx).Exec(
+		`UPDATE pegawai SET deleted_at = NOW() WHERE id_pegawai = ? AND deleted_at IS NULL`, id)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}
+
 // Couriers ------------------------------------------------------------------
 
 func (r *superadminRepo) ListKurirAll(ctx context.Context) ([]KurirJoinRow, error) {
@@ -661,6 +739,7 @@ func (r *superadminRepo) ListKurirAll(ctx context.Context) ([]KurirJoinRow, erro
 		       k.tipe_kendaraan_id_kendaraan, tk.jenis_kendaraan
 		FROM kurir k
 		JOIN tipe_kendaraan tk ON tk.id_kendaraan = k.tipe_kendaraan_id_kendaraan
+		WHERE k.deleted_at IS NULL
 		ORDER BY k.id_kurir DESC`
 	var rows []KurirJoinRow
 	if err := r.db.WithContext(ctx).Raw(q).Scan(&rows).Error; err != nil {
@@ -708,7 +787,7 @@ func (r *superadminRepo) findKurirByID(ctx context.Context, id int) (*KurirJoinR
 		       k.tipe_kendaraan_id_kendaraan, tk.jenis_kendaraan
 		FROM kurir k
 		JOIN tipe_kendaraan tk ON tk.id_kendaraan = k.tipe_kendaraan_id_kendaraan
-		WHERE k.id_kurir = ?`
+		WHERE k.id_kurir = ? AND k.deleted_at IS NULL`
 	var row KurirJoinRow
 	if err := r.db.WithContext(ctx).Raw(q, id).Scan(&row).Error; err != nil {
 		return nil, err
@@ -717,6 +796,17 @@ func (r *superadminRepo) findKurirByID(ctx context.Context, id int) (*KurirJoinR
 		return nil, nil
 	}
 	return &row, nil
+}
+
+// SoftDeleteKurir marks a courier row deleted. Returns false when no active row
+// matched. Historical deliveries keep referencing it.
+func (r *superadminRepo) SoftDeleteKurir(ctx context.Context, id int) (bool, error) {
+	res := r.db.WithContext(ctx).Exec(
+		`UPDATE kurir SET deleted_at = NOW() WHERE id_kurir = ? AND deleted_at IS NULL`, id)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
 }
 
 func (r *superadminRepo) ListTipeKendaraan(ctx context.Context) ([]TipeKendaraanRow, error) {
@@ -740,6 +830,7 @@ func (r *superadminRepo) ListCabangAll(ctx context.Context) ([]CabangRow, error)
 			TO_CHAR(jam_buka_cabang,  'HH24:MI') AS jam_buka_cabang,
 			TO_CHAR(jam_tutup_cabang, 'HH24:MI') AS jam_tutup_cabang
 		FROM cabang_laundry
+		WHERE deleted_at IS NULL
 		ORDER BY id_cabang DESC`
 	var rows []CabangRow
 	if err := r.db.WithContext(ctx).Raw(q).Scan(&rows).Error; err != nil {
@@ -758,7 +849,7 @@ func (r *superadminRepo) GetCabangByID(ctx context.Context, id int) (*CabangRow,
 			TO_CHAR(jam_buka_cabang,  'HH24:MI') AS jam_buka_cabang,
 			TO_CHAR(jam_tutup_cabang, 'HH24:MI') AS jam_tutup_cabang
 		FROM cabang_laundry
-		WHERE id_cabang = ?`
+		WHERE id_cabang = ? AND deleted_at IS NULL`
 	var row CabangRow
 	err := r.db.WithContext(ctx).Raw(q, id).Scan(&row).Error
 	if err != nil {
@@ -771,6 +862,17 @@ func (r *superadminRepo) GetCabangByID(ctx context.Context, id int) (*CabangRow,
 		return nil, nil
 	}
 	return &row, nil
+}
+
+// SoftDeleteCabang marks a branch row deleted. Returns false when no active row
+// matched. Historical orders/payments keep referencing it.
+func (r *superadminRepo) SoftDeleteCabang(ctx context.Context, id int) (bool, error) {
+	res := r.db.WithContext(ctx).Exec(
+		`UPDATE cabang_laundry SET deleted_at = NOW() WHERE id_cabang = ? AND deleted_at IS NULL`, id)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
 }
 
 func (r *superadminRepo) BranchPerformance(ctx context.Context) ([]CabangPerfRow, error) {
@@ -786,7 +888,7 @@ func (r *superadminRepo) BranchPerformance(ctx context.Context) ([]CabangPerfRow
 		LEFT JOIN pesanan p ON p.pegawai_id_pegawai = pg.id_pegawai
 		LEFT JOIN pembayaran b
 		  ON b.pesanan_id_pesanan = p.id_pesanan
-		 AND b.status_pembayaran = 'Lunas'
+		 AND LOWER(b.status_pembayaran) = 'lunas'
 		GROUP BY cl.id_cabang, cl.nama_cabang
 		ORDER BY total_revenue DESC, total_order DESC`
 	var rows []CabangPerfRow
@@ -931,7 +1033,7 @@ func (r *superadminRepo) ListPaymentsAll(ctx context.Context, method, search str
 		JOIN pelanggan pl ON pl.id_pelanggan = p.pelanggan_id_pelanggan
 		JOIN pegawai pg ON pg.id_pegawai = p.pegawai_id_pegawai
 		JOIN cabang_laundry cl ON cl.id_cabang = pg.cabang_laundry_id_cabang
-		WHERE b.status_pembayaran = 'Lunas'`)
+		WHERE LOWER(b.status_pembayaran) = 'lunas'`)
 
 	args := []interface{}{}
 	if method != "" && strings.ToLower(method) != "all" {
@@ -969,7 +1071,7 @@ func (r *superadminRepo) PaymentByCustomerForCabang(ctx context.Context, cabangI
 		JOIN pegawai pg ON pg.id_pegawai = p.pegawai_id_pegawai
 		JOIN cabang_laundry cl ON cl.id_cabang = pg.cabang_laundry_id_cabang
 		WHERE cl.id_cabang = ?
-		  AND b.status_pembayaran = 'Lunas'
+		  AND LOWER(b.status_pembayaran) = 'lunas'
 		GROUP BY pl.id_pelanggan, pl.nama_pelanggan
 		ORDER BY total_payment DESC, pl.nama_pelanggan ASC
 		LIMIT ? OFFSET ?`

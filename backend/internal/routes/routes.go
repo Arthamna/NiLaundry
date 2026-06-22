@@ -142,16 +142,21 @@ func SetupRoutes(
 		admin.GET("/vouchers", h.Superadmin.ListVouchers)
 		admin.GET("/vouchers-statistik", h.Superadmin.VouchersStatistik)
 		admin.POST("/vouchers", h.Superadmin.CreateVoucher)
+		admin.GET("/vouchers/:id", h.Superadmin.GetVoucher)
+		admin.PUT("/vouchers/:id", h.Superadmin.UpdateVoucher)
+		admin.DELETE("/vouchers/:id", h.Superadmin.DeleteVoucher)
 
 		// Staffs
 		admin.GET("/staffs", h.Superadmin.ListPegawai)
 		admin.POST("/staffs", h.Superadmin.CreatePegawai)
 		admin.PUT("/staffs/:id", h.Superadmin.UpdatePegawai)
+		admin.DELETE("/staffs/:id", h.Superadmin.DeletePegawai)
 
 		// Couriers
 		admin.GET("/couriers", h.Superadmin.ListKurir)
 		admin.POST("/couriers", h.Superadmin.CreateKurir)
 		admin.PUT("/couriers/:id", h.Superadmin.UpdateKurir)
+		admin.DELETE("/couriers/:id", h.Superadmin.DeleteKurir)
 		admin.GET("/tipe-kendaraan", h.Superadmin.ListTipeKendaraan)
 
 		// Branches
@@ -161,6 +166,7 @@ func SetupRoutes(
 		// :id routes
 		admin.GET("/branch/:id", h.Superadmin.GetCabang)
 		admin.PUT("/branch/:id", h.Superadmin.UpdateCabang)
+		admin.DELETE("/branch/:id", h.Superadmin.DeleteCabang)
 		admin.GET("/branch/:id/services", h.Superadmin.BranchServices)
 		admin.POST("/branch/:id/services", h.Superadmin.CreateTarif)
 		admin.PUT("/branch/:id/services", h.Superadmin.UpdateTarif)

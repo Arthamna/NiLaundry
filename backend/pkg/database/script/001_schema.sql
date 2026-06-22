@@ -38,7 +38,8 @@ CREATE TABLE cabang_laundry (
     alamat_cabang    TEXT NOT NULL,
     no_telp_cabang   VARCHAR(32) NOT NULL,
     jam_buka_cabang  TIME NOT NULL,
-    jam_tutup_cabang TIME NOT NULL
+    jam_tutup_cabang TIME NOT NULL,
+    deleted_at       TIMESTAMPTZ
 );
 
 -- pelanggan
@@ -73,7 +74,8 @@ CREATE TABLE pegawai (
     email_pegawai           VARCHAR(255) NOT NULL,
     no_telp_pegawai         VARCHAR(32) NOT NULL,
     alamat_pegawai          TEXT NOT NULL,
-    cabang_laundry_id_cabang INT NOT NULL REFERENCES cabang_laundry(id_cabang)
+    cabang_laundry_id_cabang INT NOT NULL REFERENCES cabang_laundry(id_cabang),
+    deleted_at              TIMESTAMPTZ
 );
 
 -- layanan
@@ -165,6 +167,7 @@ CREATE TABLE kurir (
     no_telp_kurir Varchar  NOT NULL,
     no_plat_kurir Varchar  NOT NULL,
     tipe_kendaraan_id_kendaraan int  NOT NULL,
+    deleted_at timestamptz,
     CONSTRAINT kurir_pk PRIMARY KEY (id_kurir)
 );
 

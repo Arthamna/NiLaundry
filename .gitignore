@@ -46,3 +46,6 @@ postgres_data
 
 .vscode/
 .env
+
+.claude/
+

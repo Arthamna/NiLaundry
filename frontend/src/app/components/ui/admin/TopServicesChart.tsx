@@ -21,7 +21,7 @@ export default function TopServicesChart({ bars }: TopServicesChartProps) {
             <div className="flex w-full items-start justify-between border-b border-[#e2e8f0] px-[17.5px] pt-[14px] pb-[15px]">
                 <div className="flex flex-col">
                     <h3 className="text-[15px] leading-[22.5px] font-semibold text-[#0f172b]">Top Services</h3>
-                    <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">Ranking · 30 hari</p>
+                    <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">Ranking · 30 days</p>
                 </div>
             </div>
 

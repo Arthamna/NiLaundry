@@ -28,21 +28,27 @@ type SuperadminHandler interface {
 	ListVouchers(c *gin.Context)
 	VouchersStatistik(c *gin.Context)
 	CreateVoucher(c *gin.Context)
+	GetVoucher(c *gin.Context)
+	UpdateVoucher(c *gin.Context)
+	DeleteVoucher(c *gin.Context)
 
 	// Staffs
 	ListPegawai(c *gin.Context)
 	CreatePegawai(c *gin.Context)
 	UpdatePegawai(c *gin.Context)
+	DeletePegawai(c *gin.Context)
 
 	// Couriers
 	ListKurir(c *gin.Context)
 	CreateKurir(c *gin.Context)
 	UpdateKurir(c *gin.Context)
+	DeleteKurir(c *gin.Context)
 	ListTipeKendaraan(c *gin.Context)
 
 	// Branches
 	ListCabang(c *gin.Context)
 	GetCabang(c *gin.Context)
+	DeleteCabang(c *gin.Context)
 	BranchPerformance(c *gin.Context)
 	BranchServices(c *gin.Context)
 	BranchReviews(c *gin.Context)
@@ -152,6 +158,38 @@ func (h *superadminHandler) CreateVoucher(c *gin.Context) {
 	okJSON(c, http.StatusCreated, out, err)
 }
 
+func (h *superadminHandler) GetVoucher(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	out, err := h.svc.GetVoucher(c.Request.Context(), id)
+	okJSON(c, http.StatusOK, out, err)
+}
+
+func (h *superadminHandler) UpdateVoucher(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	var req dtos.UpdateVoucherRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	out, err := h.svc.UpdateVoucher(c.Request.Context(), id, req)
+	okJSON(c, http.StatusOK, out, err)
+}
+
+func (h *superadminHandler) DeleteVoucher(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	err := h.svc.DeleteVoucher(c.Request.Context(), id)
+	okJSON(c, http.StatusOK, gin.H{"deleted": true}, err)
+}
+
 // Staffs --------------------------------------------------------------------
 
 func (h *superadminHandler) ListPegawai(c *gin.Context) {
@@ -181,6 +219,15 @@ func (h *superadminHandler) UpdatePegawai(c *gin.Context) {
 	}
 	out, err := h.svc.UpdatePegawai(c.Request.Context(), id, req)
 	okJSON(c, http.StatusOK, out, err)
+}
+
+func (h *superadminHandler) DeletePegawai(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	err := h.svc.DeletePegawai(c.Request.Context(), id)
+	okJSON(c, http.StatusOK, gin.H{"deleted": true}, err)
 }
 
 // Couriers ------------------------------------------------------------------
@@ -214,6 +261,15 @@ func (h *superadminHandler) UpdateKurir(c *gin.Context) {
 	okJSON(c, http.StatusOK, out, err)
 }
 
+func (h *superadminHandler) DeleteKurir(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	err := h.svc.DeleteKurir(c.Request.Context(), id)
+	okJSON(c, http.StatusOK, gin.H{"deleted": true}, err)
+}
+
 func (h *superadminHandler) ListTipeKendaraan(c *gin.Context) {
 	out, err := h.svc.ListTipeKendaraan(c.Request.Context())
 	okJSON(c, http.StatusOK, out, err)
@@ -233,6 +289,15 @@ func (h *superadminHandler) GetCabang(c *gin.Context) {
 	}
 	out, err := h.svc.GetCabang(c.Request.Context(), id)
 	okJSON(c, http.StatusOK, out, err)
+}
+
+func (h *superadminHandler) DeleteCabang(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	err := h.svc.DeleteCabang(c.Request.Context(), id)
+	okJSON(c, http.StatusOK, gin.H{"deleted": true}, err)
 }
 
 func (h *superadminHandler) BranchPerformance(c *gin.Context) {

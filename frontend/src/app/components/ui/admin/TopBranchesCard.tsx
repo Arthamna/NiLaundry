@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { TrendingUp } from 'lucide-react';
 
 export interface TopBranchRow {
@@ -20,11 +21,14 @@ export default function TopBranchesCard({ rows }: TopBranchesCardProps) {
             <div className="flex w-full items-center justify-between border-b border-[#e2e8f0] px-[17.5px] pt-[14px] pb-[15px]">
                 <div className="flex flex-col">
                     <h3 className="text-[15px] leading-[22.5px] font-semibold text-[#0f172b]">Top Branches</h3>
-                    <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">Pendapatan minggu ini</p>
+                    <p className="pt-[1.75px] text-[10.5px] leading-[14px] text-[#62748e]">Revenue this week</p>
                 </div>
-                <button type="button" className="text-[10.5px] leading-[14px] font-medium text-[#00786f]">
-                    View all →
-                </button>
+                <Link
+                    href="/admin/branches"
+                    className="shrink-0 text-[10.5px] leading-[14px] font-medium text-[#00786f] hover:underline"
+                >
+                    View all
+                </Link>
             </div>
 
             {/* List */}
