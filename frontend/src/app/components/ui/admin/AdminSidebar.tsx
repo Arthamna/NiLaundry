@@ -14,8 +14,6 @@ import {
     BookUser,
     ClipboardList,
     CreditCard,
-    MessageSquare,
-    Bell,
     LogOut,
 } from 'lucide-react';
 
@@ -29,8 +27,6 @@ const navLinks = [
     { href: '/admin/customers', icon: BookUser, label: 'Customers' },
     { href: '/admin/orders', icon: ClipboardList, label: 'Orders' },
     { href: '/admin/payments', icon: CreditCard, label: 'Payments' },
-    { href: '/admin/reviews', icon: MessageSquare, label: 'Reviews' },
-    { href: '/admin/notifications', icon: Bell, label: 'Notifications' },
 ];
 
 // Labels are hidden while collapsed and fade in when the sidebar is hovered (expanded).
