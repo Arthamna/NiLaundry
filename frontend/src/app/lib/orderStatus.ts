@@ -30,6 +30,8 @@ const STATUS_BADGES: Record<string, StatusBadge> = {
     processing: { label: 'Processing', badge: 'bg-[#faf5ff]', dot: 'bg-[#ad46ff]', text: 'text-[#8200db]' },
     delivery: { label: 'Delivery', badge: 'bg-[#eff6ff]', dot: 'bg-[#3b82f6]', text: 'text-[#1d4ed8]' },
     completed: { label: 'Completed', badge: 'bg-[#ecfdf5]', dot: 'bg-[#10b981]', text: 'text-[#047857]' },
+    // Cancelled — e.g. the customer left payment unconfirmed or payment failed.
+    cancelled: { label: 'Cancelled', badge: 'bg-[#f3f4f6]', dot: 'bg-[#9ca3af]', text: 'text-[#6b7280]' },
     // legacy / payment-flow values
     selesai: { label: 'Completed', badge: 'bg-[#ecfdf5]', dot: 'bg-[#10b981]', text: 'text-[#047857]' },
     active: { label: 'Processing', badge: 'bg-[#faf5ff]', dot: 'bg-[#ad46ff]', text: 'text-[#8200db]' },
@@ -45,4 +47,17 @@ export function getStatusBadge(status: string): StatusBadge {
 /** Completed orders use 'completed' (new flow); 'selesai' is the legacy value. */
 export function isCompletedStatus(status: string): boolean {
     return status === 'completed' || status === 'selesai';
+}
+
+/** Cancelled orders (left payment unconfirmed or payment failed). */
+export function isCancelledStatus(status: string): boolean {
+    return status === 'cancelled';
+}
+
+/**
+ * History statuses live in the "Completed" section of the orders page (not the
+ * active list): genuinely completed orders plus cancelled ones.
+ */
+export function isHistoryStatus(status: string): boolean {
+    return isCompletedStatus(status) || isCancelledStatus(status);
 }

@@ -7,7 +7,7 @@
 // pickup (jenisAmbil='pickup') or delivery (jenisAntar='delivery').
 
 import { apiFetch } from './client';
-import type { Kurir } from './types';
+import type { Kurir, OrderKurir } from './types';
 
 export async function listKurir(
     pelangganId: number,
@@ -20,4 +20,18 @@ export async function listKurir(
     const qs = search.toString();
     const query = qs ? `?${qs}` : '';
     return apiFetch<Kurir[]>(`/pelanggan/${pelangganId}/kurir${query}`, { signal });
+}
+
+/**
+ * GET /pelanggan/{id}/pesanan/{pesananId}/kurir — the courier(s) assigned to
+ * this order's pickup/delivery legs. Used by the order-detail courier card
+ * when the order status is 'pickup' or 'delivery'. Returns [] when the order
+ * has no courier (walk-in / self pick-up) or isn't owned by the customer.
+ */
+export async function getOrderKurir(
+    pelangganId: number,
+    pesananId: number,
+    signal?: AbortSignal,
+): Promise<OrderKurir[]> {
+    return apiFetch<OrderKurir[]>(`/pelanggan/${pelangganId}/pesanan/${pesananId}/kurir`, { signal });
 }

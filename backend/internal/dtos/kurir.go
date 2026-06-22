@@ -29,3 +29,29 @@ func ToKurirResponseList(rows []repositories.KurirRow) []KurirResponse {
 	}
 	return out
 }
+
+// OrderKurirResponse is the courier assigned to one order leg, returned by
+// GET /pelanggan/{id}/pesanan/{pesananId}/kurir. Jenis is 'pickup' | 'delivery'.
+type OrderKurirResponse struct {
+	Jenis          string `json:"jenis"`
+	Nama           string `json:"nama"`
+	NoPlat         string `json:"noPlat"`
+	JenisKendaraan string `json:"jenisKendaraan"`
+}
+
+func ToOrderKurirResponse(r *repositories.OrderKurirRow) OrderKurirResponse {
+	return OrderKurirResponse{
+		Jenis:          r.JenisPengiriman,
+		Nama:           r.NamaKurir,
+		NoPlat:         r.NoPlatKurir,
+		JenisKendaraan: r.JenisKendaraan,
+	}
+}
+
+func ToOrderKurirResponseList(rows []repositories.OrderKurirRow) []OrderKurirResponse {
+	out := make([]OrderKurirResponse, 0, len(rows))
+	for i := range rows {
+		out = append(out, ToOrderKurirResponse(&rows[i]))
+	}
+	return out
+}

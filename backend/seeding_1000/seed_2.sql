@@ -245,11 +245,15 @@ INSERT INTO pesanan (
 SELECT
     gs,
     ((gs - 1) % 5) + 1,
+    -- Active-order status MUST match the courier legs the order actually has:
+    -- 'pickup' only when jenis_ambil='pickup' (gs even), 'delivery' only when
+    -- jenis_antar='delivery' (gs % 3 = 2, see below), otherwise 'processing'.
+    -- A walk-in/walk-in order can never be in a pickup/delivery stage.
     CASE
         WHEN gs <= 1000 THEN 'completed'
-        WHEN gs % 3 = 0 THEN 'processing'
-        WHEN gs % 3 = 1 THEN 'pickup'
-        ELSE 'delivery'
+        WHEN gs % 2 = 0 THEN 'pickup'
+        WHEN gs % 3 = 2 THEN 'delivery'
+        ELSE 'processing'
     END,
     (ARRAY['harap lipat rapi', 'tolong pisahkan pakaian dalam', 'mohon jangan gunakan pewangi berlebihan', 'harap cek noda bagian lengan', 'tolong jaga warna tetap aman', 'mohon proses lebih cepat', 'harap setrika rapi bagian kerah', 'tolong bungkus terpisah', 'mohon prioritaskan barang halus', 'harap teliti bagian kantong', 'tolong perhatikan kancing', 'mohon lipat dengan ukuran kecil', 'harap pakai hanger', 'tolong hindari panas berlebih', 'mohon jangan campur dengan item lain', 'harap jaga tekstur kain', 'tolong beri tanda pada barang khusus', 'mohon pisahkan item basah', 'harap finishing lebih halus', 'tolong cek ulang jumlah item'])[((gs - 1) % 20) + 1] || ' ' ||
     (ARRAY['karena akan dipakai besok', 'untuk acara keluarga', 'supaya tetap nyaman dipakai', 'karena bahan cukup lembut', 'agar hasilnya lebih rapi', 'untuk kebutuhan kerja', 'karena item ini mudah kusut', 'supaya warna tidak pudar', 'karena ada noda kecil', 'agar mudah disimpan', 'untuk penjemputan berikutnya', 'karena termasuk barang favorit', 'supaya tidak tercampur', 'karena akan dibawa bepergian', 'untuk pakaian harian', 'karena perlu perlakuan khusus', 'agar hasil setrikanya rata', 'karena ingin cepat selesai', 'supaya tetap wangi', 'karena butuh finishing maksimal'])[((gs - 1) / 20) % 20 + 1],
@@ -259,7 +263,7 @@ SELECT
     CASE WHEN gs % 4 = 0 THEN NULL ELSE ((gs - 1) % 2000) + 1 END,
     ((gs - 1) % 1000) + 1,
     CASE WHEN gs % 2 = 0 THEN 'pickup' ELSE 'walkin' END,
-    CASE WHEN gs <= 1000 THEN 'delivery' ELSE 'walkin' END
+    CASE WHEN gs <= 1000 OR gs % 3 = 2 THEN 'delivery' ELSE 'walkin' END
 FROM generate_series(1, 2000) gs
 ON CONFLICT DO NOTHING;
 
@@ -343,7 +347,7 @@ FROM generate_series(1, 1000) gs
 ON CONFLICT DO NOTHING;
 
 -- ============================================================================
--- pengiriman (1000 rows)
+-- pengiriman (one row per pickup/delivery leg an order actually has)
 -- ============================================================================
 INSERT INTO pengiriman (
     id_pengiriman,
@@ -356,18 +360,27 @@ INSERT INTO pengiriman (
     pesanan_id_pesanan,
     kurir_id_kurir
 )
+-- One courier leg per order leg that actually needs one, derived from the
+-- same gs-based jenis rules used for pesanan above:
+--   pickup leg  -> jenis_ambil='pickup'   (gs even)
+--   delivery leg-> jenis_antar='delivery' (gs <= 1000 OR gs % 3 = 2)
+-- id_pengiriman has no IDENTITY, so ids are assigned via ROW_NUMBER().
 SELECT
-    gs,
-    NOW() + (gs % 24) * INTERVAL '1 hour',
-    'delivery',
-    'Alamat pengiriman ' || gs::text || ', ' || c.nama_pelanggan,
-    CASE WHEN gs % 3 = 0 THEN 'dikirim' WHEN gs % 3 = 1 THEN 'dalam_perjalanan' ELSE 'diterima' END,
-    (8000 + ((gs % 15) * 1000))::numeric(12,2),
-    'https://example.com/bukti/' || lpad(gs::text, 4, '0') || '.jpg',
-    gs,
-    gs
-FROM generate_series(1, 1000) gs
-JOIN pelanggan c ON c.id_pelanggan = ((gs - 1) % 25) + 1
+    ROW_NUMBER() OVER (ORDER BY legs.gs, legs.jenis),
+    NOW() + (legs.gs % 24) * INTERVAL '1 hour',
+    legs.jenis,
+    'Alamat pengiriman ' || legs.gs::text || ', ' || c.nama_pelanggan,
+    CASE WHEN legs.gs % 3 = 0 THEN 'dikirim' WHEN legs.gs % 3 = 1 THEN 'dalam_perjalanan' ELSE 'diterima' END,
+    (8000 + ((legs.gs % 15) * 1000))::numeric(12,2),
+    'https://example.com/bukti/' || lpad(legs.gs::text, 4, '0') || '.jpg',
+    legs.gs,
+    ((legs.gs - 1) % 1000) + 1
+FROM (
+    SELECT gs, 'pickup'::varchar AS jenis FROM generate_series(1, 2000) gs WHERE gs % 2 = 0
+    UNION ALL
+    SELECT gs, 'delivery'::varchar AS jenis FROM generate_series(1, 2000) gs WHERE gs <= 1000 OR gs % 3 = 2
+) legs
+JOIN pelanggan c ON c.id_pelanggan = ((legs.gs - 1) % 25) + 1
 ON CONFLICT DO NOTHING;
 
 -- ============================================================================

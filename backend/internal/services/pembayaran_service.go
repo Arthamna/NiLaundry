@@ -43,6 +43,10 @@ func (s *pembayaranService) Konfirmasi(ctx context.Context, pelangganID int, req
 
 	var updatedPembayaran *dtos.PembayaranResponse
 	err = s.pesananRepo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// finalTotal starts at the order's stored total and is reduced when a
+		// voucher applies; both the order total and the payment amount are
+		// recorded against it so the charged amount matches what the customer saw.
+		finalTotal := pesanan.TotalHargaPesanan
 		if req.VoucherID != nil {
 			v, err := s.voucherRepo.FindByID(ctx, *req.VoucherID)
 			if err != nil {
@@ -51,12 +55,12 @@ func (s *pembayaranService) Konfirmasi(ctx context.Context, pelangganID int, req
 			if v == nil {
 				return common.NewAppError(http.StatusBadRequest, "voucher not found")
 			}
-			total := applyDiscount(pesanan.TotalHargaPesanan, v.TipeDiskonVoucher, v.NilaiDiskonVoucher)
-			if err := s.pesananRepo.UpdateVoucherAndTotal(ctx, tx, pesanan.IDPesanan, &v.IDVoucher, total); err != nil {
+			finalTotal = applyDiscount(pesanan.TotalHargaPesanan, v.TipeDiskonVoucher, v.NilaiDiskonVoucher)
+			if err := s.pesananRepo.UpdateVoucherAndTotal(ctx, tx, pesanan.IDPesanan, &v.IDVoucher, finalTotal); err != nil {
 				return err
 			}
 		}
-		pb, err := s.pembayaranRepo.UpdateLunas(ctx, tx, pesanan.IDPesanan, req.Metode)
+		pb, err := s.pembayaranRepo.UpdateLunas(ctx, tx, pesanan.IDPesanan, req.Metode, finalTotal)
 		if err != nil {
 			return err
 		}

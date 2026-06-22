@@ -7,16 +7,29 @@ import BackButton from '@/components/ui/customer/BackButton';
 import OrderTimeline, { type TimelineStep, type StepState } from '@/components/ui/customer/OrderTimeline';
 import ServicesSummary, { type ServiceLine } from '@/components/ui/customer/ServicesSummary';
 import OrderReviewCard from '@/components/ui/customer/OrderReviewCard';
+import CourierCard from '@/components/ui/customer/CourierCard';
 import {
     pesananApi,
     ulasanApi,
+    kurirApi,
     getApiErrorMessage,
     getCurrentPelangganId,
     type JenisAmbil,
     type JenisAntar,
+    type OrderKurir,
     type PesananDetail,
     type Ulasan,
 } from '@/lib/api';
+import { isCancelledStatus } from '@/lib/orderStatus';
+
+const courierInitials = (name: string): string => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+const COURIER_LEG_LABEL: Record<string, string> = { pickup: 'Kurir Pickup', delivery: 'Kurir Delivery' };
 
 const formatRp = (n: number) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
 
@@ -39,11 +52,15 @@ const STEP_LABEL: Record<string, string> = {
     completed: 'Completed',
 };
 
-function scenarioSteps(jenisAmbil: JenisAmbil, jenisAntar: JenisAntar): string[] {
+function scenarioSteps(jenisAmbil: JenisAmbil, jenisAntar: JenisAntar, status: string): string[] {
     const steps: string[] = [];
-    if (jenisAmbil === 'pickup') steps.push('pickup');
+    // Include a leg step when the order's scenario calls for it OR when the
+    // order is currently sitting on that step — the latter keeps the tracker
+    // from stalling at step 0 for orders whose status doesn't line up with
+    // jenis_ambil / jenis_antar (e.g. an order advanced to 'delivery').
+    if (jenisAmbil === 'pickup' || status === 'pickup') steps.push('pickup');
     steps.push('processing');
-    if (jenisAntar === 'delivery') steps.push('delivery');
+    if (jenisAntar === 'delivery' || status === 'delivery') steps.push('delivery');
     steps.push('completed');
     return steps;
 }
@@ -54,7 +71,7 @@ function buildTimeline(
     status: string,
     eta: string,
 ): TimelineStep[] {
-    const steps = scenarioSteps(jenisAmbil, jenisAntar);
+    const steps = scenarioSteps(jenisAmbil, jenisAntar, status);
     let currentIndex = steps.indexOf(status);
     if (currentIndex < 0) currentIndex = 0; // tolerate legacy/unknown statuses
     return steps.map((key, i) => {
@@ -71,6 +88,7 @@ function OrderDetailInner() {
 
     const [detail, setDetail] = useState<PesananDetail | null>(null);
     const [ulasan, setUlasan] = useState<Ulasan | null>(null);
+    const [couriers, setCouriers] = useState<OrderKurir[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -94,15 +112,35 @@ function OrderDetailInner() {
             .then((d) => {
                 setDetail(d);
                 setUlasan(d.ulasan ?? null);
+                const tasks: Promise<unknown>[] = [];
+                // Courier card: show the assigned courier(s) for the order's
+                // pickup/delivery legs whenever they exist. They're relevant at
+                // every active stage — an order keeps its assigned courier while
+                // it's 'processing', not only while status is literally
+                // 'pickup'/'delivery'. The endpoint returns [] for walk-in
+                // orders, so it's safe to always ask (skip once cancelled).
+                if (!isCancelledStatus(d.status)) {
+                    tasks.push(
+                        kurirApi
+                            .getOrderKurir(pelangganId, pesananId, controller.signal)
+                            .then(setCouriers)
+                            .catch(() => {
+                                /* no courier / not owned — fine */
+                            }),
+                    );
+                }
                 // Completed orders may carry a review the detail endpoint didn't embed.
                 if (d.status === 'selesai' && !d.ulasan) {
-                    return ulasanApi
-                        .getUlasanForPesanan(pelangganId, pesananId, controller.signal)
-                        .then(setUlasan)
-                        .catch(() => {
-                            /* no review yet — fine */
-                        });
+                    tasks.push(
+                        ulasanApi
+                            .getUlasanForPesanan(pelangganId, pesananId, controller.signal)
+                            .then(setUlasan)
+                            .catch(() => {
+                                /* no review yet — fine */
+                            }),
+                    );
                 }
+                return Promise.all(tasks);
             })
             .catch((e) => {
                 if (!controller.signal.aborted) setError(getApiErrorMessage(e));
@@ -137,6 +175,8 @@ function OrderDetailInner() {
     }
 
     const isCompleted = detail.status === 'completed' || detail.status === 'selesai';
+    const isCancelled = isCancelledStatus(detail.status);
+    const showCouriers = !isCancelled && couriers.length > 0;
 
     // getPesanan embeds each line's layanan name + unit (joined via tarif).
     const serviceLines: ServiceLine[] = detail.items.map((it) => ({
@@ -161,12 +201,46 @@ function OrderDetailInner() {
             <div className="flex w-full flex-col gap-[20px]">
                 <BackButton href="/customer/orders" />
 
-                <OrderTimeline
-                    orderId={`#${detail.id}`}
-                    service={serviceTitle}
-                    status={detail.status}
-                    steps={buildTimeline(detail.jenisAmbil, detail.jenisAntar, detail.status, detail.estimasiSelesai)}
-                />
+                {isCancelled ? (
+                    <div className="flex w-full flex-col gap-[6px] rounded-[12.75px] border border-[#fecaca] bg-[#fef2f2] p-[16px]">
+                        <div className="flex items-center justify-between">
+                            <p className="text-[14px] leading-[20px] font-bold text-[#0f172b]">{`#${detail.id}`}</p>
+                            <span className="flex items-center gap-[5.25px] rounded-full bg-[#f3f4f6] px-[7px] py-[1.75px]">
+                                <span className="size-[5.25px] rounded-full bg-[#9ca3af]" />
+                                <span className="text-[10.5px] leading-[14px] font-normal text-[#6b7280]">Cancelled</span>
+                            </span>
+                        </div>
+                        <p className="text-[12.25px] leading-[17.5px] text-[#b91c1c]">
+                            Pesanan ini dibatalkan karena pembayaran tidak diselesaikan.
+                        </p>
+                    </div>
+                ) : (
+                    <OrderTimeline
+                        orderId={`#${detail.id}`}
+                        service={serviceTitle}
+                        status={detail.status}
+                        steps={buildTimeline(detail.jenisAmbil, detail.jenisAntar, detail.status, detail.estimasiSelesai)}
+                    />
+                )}
+
+                {/* Courier card(s) for the active pickup/delivery leg, from
+                    GET /pelanggan/{id}/pesanan/{pesananId}/kurir. */}
+                {showCouriers && (
+                    <div className="flex w-full flex-col gap-[10px]">
+                        {couriers.map((k, i) => (
+                            <div key={`${k.jenis}-${i}`} className="flex w-full flex-col gap-[6px]">
+                                <p className="text-[11px] leading-[16.5px] font-semibold text-[#62748e]">
+                                    {COURIER_LEG_LABEL[k.jenis] ?? 'Kurir'}
+                                </p>
+                                <CourierCard
+                                    initials={courierInitials(k.nama)}
+                                    name={k.nama}
+                                    vehicle={`${k.jenisKendaraan} · ${k.noPlat}`}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <ServicesSummary
                     items={serviceLines.length > 0 ? serviceLines : [{ label: 'Tidak ada item', value: '—' }]}
@@ -174,8 +248,6 @@ function OrderDetailInner() {
                     total={{ label: 'Total', value: formatRp(detail.totalHarga) }}
                 />
 
-                {/* Courier/delivery block needs the `pengiriman`+`kurir` join, which has
-                    no customer endpoint yet (CUSTOMER.md gap #4) — omitted until added. */}
                 {isCompleted && (
                     <OrderReviewCard
                         orderId={String(detail.id)}

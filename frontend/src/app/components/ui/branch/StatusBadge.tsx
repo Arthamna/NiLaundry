@@ -3,10 +3,10 @@ import React from 'react';
 // OrderStatus stores the SAME canonical values the database persists in
 // pesanan.status_pesanan (lowercase English). The UI capitalizes for display
 // via STATUS_LABEL — it never stores the capitalized form.
-export type OrderStatus = 'pickup' | 'processing' | 'delivery' | 'completed';
+export type OrderStatus = 'pickup' | 'processing' | 'delivery' | 'completed' | 'cancelled';
 
 /** Stable display order used by filter chips and stat cards. */
-export const ORDER_STATUSES: OrderStatus[] = ['pickup', 'processing', 'delivery', 'completed'];
+export const ORDER_STATUSES: OrderStatus[] = ['pickup', 'processing', 'delivery', 'completed', 'cancelled'];
 
 /** Human-readable label for a stored status value. */
 export const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -14,6 +14,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
     processing: 'Processing',
     delivery: 'Delivery',
     completed: 'Completed',
+    cancelled: 'Cancelled',
 };
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
@@ -21,6 +22,7 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
     processing: 'bg-[#fef3c6] border-[#fee685] text-[#f59e0b]',
     pickup: 'bg-[#ffccd3] border-[#f991aa] text-[#f41313]',
     completed: 'bg-[#d1fae5] border-[#6ee7b7] text-[#065f46]',
+    cancelled: 'bg-[#f3f4f6] border-[#d1d5db] text-[#6b7280]',
 };
 
 export default function StatusBadge({ status }: { status: OrderStatus }) {

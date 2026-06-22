@@ -211,6 +211,16 @@ export interface Kurir {
     jenisKendaraan: string; // tipe_kendaraan.jenis_kendaraan
 }
 
+// Courier assigned to a specific order leg, from
+// GET /pelanggan/{id}/pesanan/{pesananId}/kurir (pengiriman → kurir → tipe_kendaraan).
+// Shown on the order-detail page when the order has a pickup/delivery leg.
+export interface OrderKurir {
+    jenis: 'pickup' | 'delivery' | string; // pengiriman.jenis_pengiriman
+    nama: string; // nama_kurir
+    noPlat: string; // no_plat_kurir
+    jenisKendaraan: string; // tipe_kendaraan.jenis_kendaraan
+}
+
 // --- notifikasi --------------------------------------------------------------
 // db.sql: notifikasi(id_notifikasi, judul_notifikasi, pesan_notifikasi, tipe_notifikasi)
 export interface Notifikasi {

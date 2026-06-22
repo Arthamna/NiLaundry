@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import VoucherTabs from '@/components/ui/customer/VoucherTabs';
 import VoucherCard from '@/components/ui/customer/VoucherCard';
@@ -29,6 +30,7 @@ function toVM(v: Voucher, now: number): CardVM {
 }
 
 export default function VouchersBoard() {
+    const router = useRouter();
     const [active, setActive] = useState<Tab>('Active');
     const [groups, setGroups] = useState<Record<Tab, CardVM[]>>({ Active: [], Used: [], Expired: [] });
     const [isLoading, setIsLoading] = useState(true);
@@ -91,6 +93,14 @@ export default function VouchersBoard() {
                                 code={v.code}
                                 description={v.description}
                                 expiry={v.expiry}
+                                // Only Active vouchers are appliable; "Apply" mirrors the
+                                // dashboard "Use Now" — start a new order with this voucher
+                                // pre-selected. Used / Expired tabs are display-only.
+                                onApply={
+                                    active === 'Active'
+                                        ? () => router.push(`/customer/orders/new?voucher=${v.id}`)
+                                        : undefined
+                                }
                             />
                         ))
                     )}

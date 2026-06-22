@@ -6,16 +6,12 @@ import { ChevronDown, Trash2, Plus, Bike } from 'lucide-react';
 import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import BackButton from '@/components/ui/customer/BackButton';
 import { createPesananFromItems } from '@/lib/orders';
-<<<<<<< Updated upstream
 import {
     pesananApi,
     getApiErrorMessage,
     type KatalogCabang,
     type KatalogService,
 } from '@/lib/api';
-=======
-import { kurirApi, getApiErrorMessage, getCurrentPelangganId, type Kurir } from '@/lib/api';
->>>>>>> Stashed changes
 
 // The branch + service catalog is fetched live from GET /katalog (tarif joined
 // with cabang + layanan). The tarifId / cabangId are the real DB ids, so the

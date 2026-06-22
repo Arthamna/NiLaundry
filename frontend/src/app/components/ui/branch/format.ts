@@ -92,6 +92,10 @@ export function mapOrderStatus(raw: string): OrderStatus {
         case 'completed':
         case 'selesai':
             return 'completed';
+        case 'cancelled':
+        case 'canceled':
+        case 'dibatalkan':
+            return 'cancelled';
         default:
             return 'processing';
     }

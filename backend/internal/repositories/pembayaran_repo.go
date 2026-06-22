@@ -10,7 +10,7 @@ import (
 
 type PembayaranRepository interface {
 	FindByPesanan(ctx context.Context, pesananID int) (*models.Pembayaran, error)
-	UpdateLunas(ctx context.Context, tx *gorm.DB, pesananID int, metode string) (*models.Pembayaran, error)
+	UpdateLunas(ctx context.Context, tx *gorm.DB, pesananID int, metode string, jumlah float64) (*models.Pembayaran, error)
 	DB() *gorm.DB
 }
 
@@ -33,7 +33,7 @@ func (r *pembayaranRepo) FindByPesanan(ctx context.Context, pesananID int) (*mod
 	return &p, nil
 }
 
-func (r *pembayaranRepo) UpdateLunas(ctx context.Context, tx *gorm.DB, pesananID int, metode string) (*models.Pembayaran, error) {
+func (r *pembayaranRepo) UpdateLunas(ctx context.Context, tx *gorm.DB, pesananID int, metode string, jumlah float64) (*models.Pembayaran, error) {
 	db := tx
 	if db == nil {
 		db = r.db.WithContext(ctx)
@@ -43,6 +43,7 @@ func (r *pembayaranRepo) UpdateLunas(ctx context.Context, tx *gorm.DB, pesananID
 		Updates(map[string]interface{}{
 			"metode_pembayaran": metode,
 			"status_pembayaran": "Lunas",
+			"jumlah_pembayaran": jumlah,
 		}).Error; err != nil {
 		return nil, err
 	}

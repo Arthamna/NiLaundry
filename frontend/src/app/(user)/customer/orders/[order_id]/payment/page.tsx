@@ -1,10 +1,6 @@
 'use client';
 
-<<<<<<< Updated upstream
-import { useEffect, useMemo, useState } from 'react';
-=======
-import { useEffect, useRef, useState } from 'react';
->>>>>>> Stashed changes
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import BackButton from '@/components/ui/customer/BackButton';
@@ -38,6 +34,14 @@ function amountLabel(v: Voucher): string {
     return v.tipeDiskon === 'persen' ? `${v.nilaiDiskon}%` : idr(v.nilaiDiskon);
 }
 
+// Mirrors the backend's applyDiscount (pembayaran_service.go) so the UI shows
+// the same final total the server will charge at confirmation.
+function applyDiscount(total: number, v: Voucher): number {
+    if (v.tipeDiskon === 'persen') return Math.max(0, total - (total * v.nilaiDiskon) / 100);
+    if (v.tipeDiskon === 'nominal') return Math.max(0, total - v.nilaiDiskon);
+    return total;
+}
+
 function toPaymentVoucher(v: Voucher, now: number): PaymentVoucher {
     return {
         amount: amountLabel(v),
@@ -65,6 +69,7 @@ export default function PaymentPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [leaving, setLeaving] = useState(false);
 
     // Refs read by the cleanup effect — refs (not state) so unmount fires the
     // current values without re-running the effect each time they change.
@@ -115,10 +120,10 @@ export default function PaymentPage() {
         return () => controller.abort();
     }, [orderId]);
 
-<<<<<<< Updated upstream
     useEffect(() => {
         setVoucherParam(new URLSearchParams(window.location.search).get('voucher'));
-=======
+    }, []);
+
     // Auto-cancel hook. The order was created with status='Menunggu'; if the
     // customer leaves this page without confirming payment we flip it to
     // 'cancelled'. Two layers:
@@ -153,25 +158,27 @@ export default function PaymentPage() {
         return () => {
             window.removeEventListener('beforeunload', cancelViaKeepalive);
             window.removeEventListener('pagehide', cancelViaKeepalive);
-            // In-app navigation: fire-and-forget; idempotent on the backend.
-            const pelangganId = pelangganIdRef.current;
-            const pesananId = pesananIdRef.current;
-            if (
-                pelangganId == null ||
-                pesananId == null ||
-                paidRef.current ||
-                cancelledRef.current
-            ) {
-                return;
-            }
-            cancelledRef.current = true;
-            pesananApi.cancelPesanan(pelangganId, pesananId).catch(() => {});
+            // NOTE: do NOT auto-cancel here. React StrictMode (dev) runs this
+            // cleanup on its mount→cleanup→mount cycle while the payment is
+            // still 'pending', which would cancel the order the instant the
+            // page opens — before the customer ever clicks Pay. Real exits are
+            // already covered: the back button cancels explicitly via
+            // handleBack, and tab close / refresh / external nav fire the
+            // keepalive cancel above. An in-app link away leaves the order
+            // pending, which is correct (better than cancelling a paid order).
         };
->>>>>>> Stashed changes
     }, []);
 
-    const total = detail ? idr(detail.totalHarga) : '';
     const orderTotal = detail?.totalHarga ?? 0;
+    // The order's stored total is pre-voucher; reflect an applied voucher's
+    // discount in the UI right away (the backend recomputes the same way at
+    // confirmation).
+    const appliedVoucherRaw = voucherId != null ? (ownedVouchers.find((v) => v.id === voucherId) ?? null) : null;
+    const discountedTotal = appliedVoucherRaw ? applyDiscount(orderTotal, appliedVoucherRaw) : orderTotal;
+    const total = detail ? idr(discountedTotal) : '';
+    const voucherSummary = appliedVoucherRaw
+        ? { label: `Voucher ${appliedVoucherRaw.kode}`, amount: `- ${idr(Math.round(orderTotal - discountedTotal))}` }
+        : undefined;
 
     // Auto-apply a forwarded voucher once the order total + owned vouchers are
     // known — but only if it's eligible (order total ≥ min purchase). Runs once.
@@ -212,6 +219,32 @@ export default function PaymentPage() {
         setExpanded(false);
     }
 
+    // In-app back: cancel the still-pending order and WAIT for it to commit
+    // before navigating, so the order-detail page we land on re-fetches the
+    // already-cancelled order (rather than racing the fire-and-forget cancel
+    // in the unmount cleanup and showing it as still active).
+    async function handleBack() {
+        const pelangganId = pelangganIdRef.current;
+        const pesananId = pesananIdRef.current;
+        if (
+            pelangganId != null &&
+            pesananId != null &&
+            !paidRef.current &&
+            !cancelledRef.current
+        ) {
+            // Mark cancelled BEFORE awaiting so the unmount cleanup that fires
+            // on navigation doesn't send a duplicate cancel.
+            cancelledRef.current = true;
+            setLeaving(true);
+            try {
+                await pesananApi.cancelPesanan(pelangganId, pesananId);
+            } catch {
+                /* idempotent / best-effort */
+            }
+        }
+        router.push(`/customer/orders/${orderId}`);
+    }
+
     async function handlePay() {
         const pelangganId = getCurrentPelangganId();
         const pesananId = Number(orderId);
@@ -228,6 +261,10 @@ export default function PaymentPage() {
             paidRef.current = true;
             router.push('/customer/orders');
         } catch (e) {
+            // Payment failed → keep the order intact and let the customer retry.
+            // (Previously this cancelled the order on any error, which destroyed
+            // a perfectly good order on a transient failure.) The order is only
+            // cancelled when the customer explicitly leaves via the back button.
             setError(getApiErrorMessage(e));
             setSubmitting(false);
         }
@@ -240,7 +277,12 @@ export default function PaymentPage() {
             <div className="flex w-full flex-col gap-[32px]">
                 <div className="flex w-full flex-col gap-[40px]">
                     <div className="flex w-full flex-col gap-[20px]">
-                        <BackButton href={`/customer/orders/${orderId}`} label="← Kembali" />
+                        <BackButton
+                            href={`/customer/orders/${orderId}`}
+                            label={leaving ? 'Membatalkan…' : '← Kembali'}
+                            onClick={handleBack}
+                            disabled={leaving}
+                        />
                         <h1 className={HEADING_CLASS}>Payment Methods</h1>
                     </div>
                     <PaymentMethods value={metode} onChange={setMetode} />
@@ -270,7 +312,7 @@ export default function PaymentPage() {
                         </div>
 
                         <h2 className={HEADING_CLASS}>Order Details</h2>
-                        <OrderSummaryCard services={serviceLines} couriers={[]} total={total} />
+                        <OrderSummaryCard services={serviceLines} couriers={[]} voucher={voucherSummary} total={total} />
 
                         <button
                             type="button"

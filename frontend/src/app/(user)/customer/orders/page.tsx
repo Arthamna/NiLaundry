@@ -7,10 +7,7 @@ import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import OrdersSection from '@/components/ui/customer/OrdersSection';
 import OrderCard from '@/components/ui/customer/OrderCard';
 import { pesananApi, ulasanApi, getApiErrorMessage, getCurrentPelangganId, type Pesanan } from '@/lib/api';
-
-// Completed orders use status 'completed' (new delivery flow); 'selesai' is the
-// legacy value kept for older rows.
-const isCompletedStatus = (status: string): boolean => status === 'completed' || status === 'selesai';
+import { isCompletedStatus, isCancelledStatus, isHistoryStatus } from '@/lib/orderStatus';
 
 function formatEta(p: Pesanan): string {
     const d = new Date(p.estimasiSelesai);
@@ -21,6 +18,7 @@ function formatEta(p: Pesanan): string {
         hour: '2-digit',
         minute: '2-digit',
     });
+    if (isCancelledStatus(p.status)) return `Dibatalkan · ${fmt}`;
     return isCompletedStatus(p.status) ? `Selesai · ${fmt}` : `ETA ${fmt}`;
 }
 
@@ -59,8 +57,10 @@ export default function CustomerOrdersPage() {
         return () => controller.abort();
     }, []);
 
-    const activeOrders = orders.filter((o) => !isCompletedStatus(o.status));
-    const completedOrders = orders.filter((o) => isCompletedStatus(o.status));
+    // Cancelled orders (incl. payment-failed) join completed in the history
+    // section — never the active list.
+    const activeOrders = orders.filter((o) => !isHistoryStatus(o.status));
+    const completedOrders = orders.filter((o) => isHistoryStatus(o.status));
 
     return (
         <div className="flex flex-col gap-[50px]">

@@ -22,12 +22,17 @@ export default function VoucherCard({ amount, code, description, expiry, onApply
                 <p className="text-[11px] leading-[16.5px] font-normal text-[#45556c]">{description}</p>
                 <div className="mt-[10.5px] flex w-full items-center justify-between">
                     <p className="text-[10px] leading-[15px] font-normal text-[#62748e]">{expiry}</p>
-                    <button
-                        onClick={onApply}
-                        className="rounded-full bg-[#6df5e1] px-[15px] py-1 text-[14px] leading-[21px] font-bold text-[#00776a]"
-                    >
-                        Apply
-                    </button>
+                    {/* Apply only renders when the parent supplies a handler — used
+                        vouchers (already applied) and expired ones are display-only. */}
+                    {onApply && (
+                        <button
+                            type="button"
+                            onClick={onApply}
+                            className="rounded-full bg-[#6df5e1] px-[15px] py-1 text-[14px] leading-[21px] font-bold text-[#00776a] transition-colors hover:bg-[#4ee9d2]"
+                        >
+                            Apply
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

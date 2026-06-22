@@ -14,6 +14,8 @@ export interface CourierLine {
 interface OrderSummaryCardProps {
     services: OrderServiceLine[];
     couriers: CourierLine[];
+    /** Optional applied-voucher discount line shown above the total. */
+    voucher?: { label: string; amount: string };
     total: string;
 }
 
@@ -68,7 +70,7 @@ function CourierRow({ line }: { line: CourierLine }) {
     );
 }
 
-export default function OrderSummaryCard({ services, couriers, total }: OrderSummaryCardProps) {
+export default function OrderSummaryCard({ services, couriers, voucher, total }: OrderSummaryCardProps) {
     return (
         <div className="flex w-full flex-col gap-[10px] rounded-[12.75px] border-2 border-[#bdc9c6] bg-white p-[12.5px]">
             {services.map((line, i) => (
@@ -81,6 +83,13 @@ export default function OrderSummaryCard({ services, couriers, total }: OrderSum
             {couriers.map((line, i) => (
                 <CourierRow key={i} line={line} />
             ))}
+
+            {voucher && (
+                <div className="flex w-full items-center justify-between text-[14px] leading-[17.5px] font-normal text-[#00786f]">
+                    <span>{voucher.label}</span>
+                    <span>{voucher.amount}</span>
+                </div>
+            )}
 
             <div className="h-[2px] w-full rounded-[1px] bg-[#3e4947]" />
 

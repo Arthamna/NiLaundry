@@ -20,6 +20,7 @@ import {
     type Voucher,
     type Notifikasi,
 } from '@/lib/api';
+import { isCompletedStatus, isHistoryStatus } from '@/lib/orderStatus';
 
 const STEP_LABEL: Record<string, string> = {
     pickup: 'Pickup',
@@ -28,11 +29,14 @@ const STEP_LABEL: Record<string, string> = {
     completed: 'Completed',
 };
 
-function scenarioSteps(jenisAmbil: string, jenisAntar: string): string[] {
+function scenarioSteps(jenisAmbil: string, jenisAntar: string, status: string): string[] {
     const steps: string[] = [];
-    if (jenisAmbil === 'pickup') steps.push('pickup');
+    // Include a leg step when the scenario calls for it OR when the order is
+    // currently on that step — otherwise an order advanced to 'delivery' on a
+    // scenario without a delivery leg can't be located and the bar stalls.
+    if (jenisAmbil === 'pickup' || status === 'pickup') steps.push('pickup');
     steps.push('processing');
-    if (jenisAntar === 'delivery') steps.push('delivery');
+    if (jenisAntar === 'delivery' || status === 'delivery') steps.push('delivery');
     steps.push('completed');
     return steps;
 }
@@ -65,17 +69,20 @@ interface DashboardView {
 function buildView(orders: Pesanan[], vouchers: Voucher[], notifs: Notifikasi[], totalSaved: number): DashboardView {
     const now = Date.now();
     // Pesanan has no created-at column; id is monotonic, so sort newest-first by id.
-    const active = orders.filter((o) => o.status !== 'selesai' && o.status !== 'completed' && o.status !== 'dibatalkan' && o.status !== 'canceled').sort((a, b) => b.id - a.id);
-    const completed = orders.filter((o) => o.status === 'selesai' || o.status === 'completed');
+    // Active = anything not in a history state. isHistoryStatus covers both
+    // completed ('completed'/'selesai') AND cancelled ('cancelled'), so a
+    // cancelled or finished order is never picked as the latest progress card.
+    const active = orders.filter((o) => !isHistoryStatus(o.status)).sort((a, b) => b.id - a.id);
+    const completed = orders.filter((o) => isCompletedStatus(o.status));
     const first = active[0];
 
     let progress = null;
     if (first) {
-        const scenario = scenarioSteps(first.jenisAmbil, first.jenisAntar);
-        
         let status = first.status;
         if (status === 'diproses') status = 'processing';
         else if (status === 'selesai') status = 'completed';
+
+        const scenario = scenarioSteps(first.jenisAmbil, first.jenisAntar, status);
 
         let currentIndex = scenario.indexOf(status);
         if (currentIndex < 0) currentIndex = 0;

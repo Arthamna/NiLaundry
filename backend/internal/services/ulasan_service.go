@@ -7,6 +7,7 @@ import (
 	"arthamna/NiLaundry/pkg/common"
 	"context"
 	"net/http"
+	"time"
 )
 
 type UlasanService interface {
@@ -52,6 +53,7 @@ func (s *ulasanService) Create(ctx context.Context, pelangganID, pesananID int, 
 		RatingUlasan:     req.Rating,
 		KomentarUlasan:   req.Komentar,
 		PesananIDPesanan: pesananID,
+		WaktuUlasan:      time.Now(),
 	}
 	if err := s.ulasanRepo.Create(ctx, u); err != nil {
 		return nil, common.NewAppError(http.StatusBadRequest, err.Error())
