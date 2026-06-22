@@ -15,12 +15,14 @@ const labelClass = 'text-[13px] leading-4 font-semibold uppercase tracking-[0.6p
 const valueClass = 'text-[31px] leading-[38px] font-semibold tracking-[-0.6px]';
 
 export default function StatsGrid({ activeOrders, completedOrders, totalSaved }: StatsGridProps) {
+    const activeOrderValue = activeOrders < 10 ? String(activeOrders) : String(activeOrders).padStart(2, '0');
+
     return (
         <div className="grid grid-cols-3 gap-6">
             <div className={cardClass}>
                 <div className="flex flex-col gap-1">
                     <p className={labelClass}>Active Orders</p>
-                    <h2 className={`${valueClass} text-[#005c55]`}>{String(activeOrders).padStart(2, '0')}</h2>
+                    <h2 className={`${valueClass} text-[#005c55]`}>{activeOrderValue}</h2>
                 </div>
                 <div className="flex size-12 items-center justify-center rounded-lg bg-[rgba(15,118,110,0.1)] text-[#0f766e]">
                     <Truck size={22} />
