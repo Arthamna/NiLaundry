@@ -324,18 +324,20 @@ export interface AdminOrderDetail extends AdminOrder {
 
 /**
  * Payload for PUT /branch/{id_cabang}/order/{id_pesanan}/detail.
- * status values follow the transition table in ADMIN_ENDPOINT.md
- * (paid | pickup | processing | completed | delivery). employeeId/pin carry the
- * "Employee Verification" the status-update drawer collects to confirm the change.
+ * pegawaiId is required (the "Employee Verification" drawer collects it).
+ * No PIN — ownership is validated against the (cabang, pesanan, pegawai) tuple.
  */
 export interface UpdateOrderDetailInput {
+    pegawaiId: number;
     status?: StatusPesanan;
+    catatan?: string;
     estimasiSelesai?: string; // ISO timestamp
-    employeeId?: string; // pegawai id or name entered for verification
-    pin?: string; // staff PIN / password
+    totalHarga?: number;
+    jumlahItem?: number;
+    voucherId?: number | null;
 }
 
-/** Query params for the paginated/sortable/filterable order list (go-pagination). */
+/** Query params for the paginated/sortable/filterable order list. */
 export interface ListOrdersParams {
     page?: number;
     limit?: number;
@@ -345,29 +347,85 @@ export interface ListOrdersParams {
 }
 
 // --- Report: payment statistics ----------------------------------------------
-/**
- * A paid payment row for GET /branch/{id_cabang}/order/statistik/payment
- * (only status_pembayaran = paid). Used for the Report ledger.
- */
+/** A paid payment ledger row for GET /branch/{id_cabang}/payments. */
 export interface AdminPayment {
-    id: number; // id_pembayaran (shown as Invoice ID)
+    id: number; // id_pembayaran (Invoice ID)
+    pesananId: number;
+    pelangganNama: string;
+    pelangganNoTelp: string;
+    waktu: string; // ISO timestamp
+    metode: string;
+    jumlah: number;
+}
+
+/** GET /branch/{id_cabang}/order/statistik/payment/done — per-customer paid grouping. */
+export interface PaymentByCustomer {
+    pelangganId: number;
+    pelangganNama: string;
+    totalOrder: number;
+    totalPayment: number;
+}
+
+/** GET /branch/{id_cabang}/order/statistik/payment/method/chart — per-method % share. */
+export interface PaymentMethodChartItem {
+    metode: string;
+    totalEntries: number;
+    persentase: number;
+}
+
+/** GET /branch/{id_cabang}/order/statistik/payment/method/total — total paid amount. */
+export interface PaymentTotal {
+    total: number;
+}
+
+/** GET /branch/{id_cabang}/order/statistik/payment/method/average — average paid amount. */
+export interface PaymentAverage {
+    average: number;
+}
+
+// --- Reviews ----------------------------------------------------------------
+/** Review row used by both /branch/{id}/ulasan and /branch/{id}/reviews. */
+export interface UlasanAdmin {
+    id: number; // id_ulasan
+    rating: number; // rating_ulasan (1..5)
+    komentar: string; // komentar_ulasan
     pesananId: number; // pesanan_id_pesanan
-    pelangganNama: string; // pelanggan.nama_pelanggan
-    pelangganNoTelp: string; // pelanggan.no_telp_pelanggan
-    waktu: string; // waktu_pembayaran (ISO timestamp)
-    metode: string; // metode_pembayaran
-    jumlah: number; // jumlah_pembayaran
+    pelangganId: number;
+    pelangganNama: string;
+    pelangganEmail: string;
+    pegawaiId: number;
+    pegawaiNama: string;
+    layananNama: string | null; // best-effort: first layanan in the order
 }
 
-/** Per-method count: GET /branch/{id_cabang}/order/statistik/payment/method. */
-export interface PaymentMethodStat {
-    metode: string; // metode_pembayaran
-    count: number; // COUNT(*) of paid payments with this method
+/** GET /branch/{id_cabang}/ulasan/distribusi — count per rating (1..5) + total. */
+export interface UlasanDistribusi {
+    rating1: number;
+    rating2: number;
+    rating3: number;
+    rating4: number;
+    rating5: number;
+    total: number;
 }
 
-/** Per-method count + summed amount: .../payment/method/total. */
-export interface PaymentMethodTotal {
-    metode: string; // metode_pembayaran
-    count: number;
-    total: number; // SUM(jumlah_pembayaran)
+/** GET /branch/{id_cabang}/ulasan/average — average + per-rating count + total. */
+export interface UlasanAverage {
+    averageRating: number;
+    rating1: number;
+    rating2: number;
+    rating3: number;
+    rating4: number;
+    rating5: number;
+    totalUlasan: number;
+}
+
+// --- Staff ------------------------------------------------------------------
+/** GET /branch/{id_cabang}/pegawai — staff row scoped to one cabang. */
+export interface AdminPegawai {
+    id: number;
+    nama: string;
+    email: string;
+    noTelp: string;
+    alamat: string;
+    cabangId: number;
 }

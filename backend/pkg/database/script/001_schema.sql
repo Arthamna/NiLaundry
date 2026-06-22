@@ -4,25 +4,25 @@
 
 BEGIN;
 
-DROP TABLE IF EXISTS pesanan_notifikasi CASCADE;
-DROP TABLE IF EXISTS notifikasi_pelanggan CASCADE;
-DROP TABLE IF EXISTS voucher_pelanggan CASCADE;
-DROP TABLE IF EXISTS ulasan CASCADE;
-DROP TABLE IF EXISTS pembayaran CASCADE;
-DROP TABLE IF EXISTS pengiriman CASCADE;
-DROP TABLE IF EXISTS item_pesanan CASCADE;
-DROP TABLE IF EXISTS pesanan CASCADE;
-DROP TABLE IF EXISTS notifikasi CASCADE;
-DROP TABLE IF EXISTS voucher CASCADE;
-DROP TABLE IF EXISTS tarif CASCADE;
-DROP TABLE IF EXISTS layanan CASCADE;
-DROP TABLE IF EXISTS pegawai CASCADE;
-DROP TABLE IF EXISTS kurir CASCADE;
-DROP TABLE IF EXISTS tipe_kendaraan CASCADE;
-DROP TABLE IF EXISTS pengguna CASCADE;
-DROP TABLE IF EXISTS role CASCADE;
-DROP TABLE IF EXISTS pelanggan CASCADE;
-DROP TABLE IF EXISTS cabang_laundry CASCADE;
+truncate TABLE pesanan_notifikasi CASCADE;
+truncate TABLE notifikasi_pelanggan CASCADE;
+truncate TABLE voucher_pelanggan CASCADE;
+truncate TABLE ulasan CASCADE;
+truncate TABLE pembayaran CASCADE;
+truncate TABLE pengiriman CASCADE;
+truncate TABLE item_pesanan CASCADE;
+truncate TABLE pesanan CASCADE;
+truncate TABLE notifikasi CASCADE;
+truncate TABLE voucher CASCADE;
+truncate TABLE tarif CASCADE;
+truncate TABLE layanan CASCADE;
+truncate TABLE pegawai CASCADE;
+truncate TABLE kurir CASCADE;
+truncate TABLE tipe_kendaraan CASCADE;
+truncate TABLE pengguna CASCADE;
+truncate TABLE role CASCADE;
+truncate TABLE pelanggan CASCADE;
+truncate TABLE cabang_laundry CASCADE;
 
 -- role: lookup table for non-customer roles (superadmin, admin).
 -- Customers (pelanggan) are not in this table; their role is implicit.

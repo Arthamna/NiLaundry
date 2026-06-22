@@ -38,7 +38,6 @@ docker exec -i postgre-db psql -U postgres -d nilaundry < pkg/database/script/00
 
 4. Jalankan backend:
 
-
 make run       # go run ./cmd
 Server listen di http://localhost:8080.
 

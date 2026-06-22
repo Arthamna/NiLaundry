@@ -6,18 +6,32 @@ interface StatCard {
     valueColor: string;
 }
 
-const CARDS: StatCard[] = [
-    { label: 'Total Orders', value: '142', valueColor: 'text-[#181c1c]' },
-    { label: 'Pickup', value: '24', valueColor: 'text-[#0f172b]' },
-    { label: 'Processing', value: '38', valueColor: 'text-[#0f172b]' },
-    { label: 'Delivery', value: '24', valueColor: 'text-[#0f172b]' },
-    { label: 'Completed', value: '24', valueColor: 'text-[#0f172b]' },
-];
+export interface OrdersStatCardsProps {
+    total: number;
+    pickup: number;
+    processing: number;
+    delivery: number;
+    completed: number;
+}
 
-export default function OrdersStatCards() {
+export default function OrdersStatCards({
+    total,
+    pickup,
+    processing,
+    delivery,
+    completed,
+}: OrdersStatCardsProps) {
+    const cards: StatCard[] = [
+        { label: 'Total Orders', value: String(total), valueColor: 'text-[#181c1c]' },
+        { label: 'Pickup', value: String(pickup), valueColor: 'text-[#0f172b]' },
+        { label: 'Processing', value: String(processing), valueColor: 'text-[#0f172b]' },
+        { label: 'Delivery', value: String(delivery), valueColor: 'text-[#0f172b]' },
+        { label: 'Completed', value: String(completed), valueColor: 'text-[#0f172b]' },
+    ];
+
     return (
         <div className="grid w-full grid-cols-5 gap-4">
-            {CARDS.map((card) => (
+            {cards.map((card) => (
                 <div
                     key={card.label}
                     className="flex flex-col items-start gap-1 self-start rounded-[12px] border border-[#bdc9c6] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"

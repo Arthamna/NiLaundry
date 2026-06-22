@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"arthamna/NiLaundry/constants"
 	"arthamna/NiLaundry/internal/handlers"
+	"arthamna/NiLaundry/internal/repositories"
 	"arthamna/NiLaundry/pkg/auth"
 	"arthamna/NiLaundry/pkg/middleware"
 
@@ -16,9 +18,15 @@ type Handlers struct {
 	Voucher    handlers.VoucherHandler
 	Notifikasi handlers.NotifikasiHandler
 	Pembayaran handlers.PembayaranHandler
+	Branch     handlers.BranchHandler
 }
 
-func SetupRoutes(r *gin.Engine, jwtService auth.JWTService, h Handlers) {
+func SetupRoutes(
+	r *gin.Engine,
+	jwtService auth.JWTService,
+	penggunaRepo repositories.PenggunaRepository,
+	h Handlers,
+) {
 	// Public auth endpoints. /auth/login is unified — searches pelanggan
 	// then pengguna, response carries subjectType so the frontend can route.
 	authGroup := r.Group("/auth")
@@ -56,5 +64,42 @@ func SetupRoutes(r *gin.Engine, jwtService auth.JWTService, h Handlers) {
 
 			owned.POST("/pembayaran/konfirmasi", h.Pembayaran.Konfirmasi)
 		}
+	}
+
+	// Branch (admin per cabang) endpoints. Superadmin can access any
+	// cabangId; admin can only access their own (RequireBranchAccess does a
+	// DB lookup on pengguna.cabang_laundry_id_cabang).
+	branch := r.Group("/branch/:cabangId")
+	branch.Use(
+		middleware.Authenticate(jwtService),
+		middleware.RequireAnyRole(constants.RoleAdmin, constants.RoleSuperAdmin),
+		middleware.RequireBranchAccess(penggunaRepo, "cabangId"),
+	)
+	{
+		// Dashboard
+		branch.GET("/order/statistik/data", h.Branch.OrderStatistik)
+		branch.GET("/order/list", h.Branch.ListOrders)
+		branch.GET("/orders", h.Branch.ListOrders) // alias from doc
+		branch.GET("/payments", h.Branch.RecentPayments)
+		branch.GET("/reviews", h.Branch.RecentReviews)
+
+		// Orders
+		branch.GET("/order/statistik/status", h.Branch.OrderStatusStatistik)
+		branch.GET("/order/:pesananId/detail", h.Branch.OrderDetail)
+		branch.PUT("/order/:pesananId/detail", h.Branch.UpdateOrderDetail)
+
+		// Reports
+		branch.GET("/order/statistik/payment/done", h.Branch.PaymentByCustomer)
+		branch.GET("/order/statistik/payment/method/chart", h.Branch.PaymentMethodChart)
+		branch.GET("/order/statistik/payment/method/total", h.Branch.PaymentMethodTotal)
+		branch.GET("/order/statistik/payment/method/average", h.Branch.PaymentMethodAverage)
+
+		// Reviews
+		branch.GET("/ulasan", h.Branch.ListUlasan)
+		branch.GET("/ulasan/distribusi", h.Branch.UlasanDistribusi)
+		branch.GET("/ulasan/average", h.Branch.UlasanAverage)
+
+		// Staff
+		branch.GET("/pegawai", h.Branch.ListPegawai)
 	}
 }

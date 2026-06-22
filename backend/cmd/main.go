@@ -38,6 +38,7 @@ func main() {
 	pembayaranRepo := repositories.NewPembayaranRepository(db)
 	pegawaiRepo := repositories.NewPegawaiRepository(db)
 	tarifRepo := repositories.NewTarifRepository(db)
+	branchRepo := repositories.NewBranchRepository(db)
 
 	// services
 	authSvc := services.NewAuthService(pelangganRepo, penggunaRepo, jwtService)
@@ -47,6 +48,7 @@ func main() {
 	voucherSvc := services.NewVoucherService(voucherRepo)
 	notifSvc := services.NewNotifikasiService(notifRepo)
 	pembayaranSvc := services.NewPembayaranService(pembayaranRepo, pesananRepo, voucherRepo)
+	branchSvc := services.NewBranchService(branchRepo)
 
 	// handlers
 	h := routes.Handlers{
@@ -57,6 +59,7 @@ func main() {
 		Voucher:    handlers.NewVoucherHandler(voucherSvc),
 		Notifikasi: handlers.NewNotifikasiHandler(notifSvc),
 		Pembayaran: handlers.NewPembayaranHandler(pembayaranSvc),
+		Branch:     handlers.NewBranchHandler(branchSvc),
 	}
 
 	r := gin.Default()
@@ -67,7 +70,7 @@ func main() {
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	r.Use(cors.New(corsConfig))
 
-	routes.SetupRoutes(r, jwtService, h)
+	routes.SetupRoutes(r, jwtService, penggunaRepo, h)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

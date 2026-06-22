@@ -1,40 +1,130 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 import BranchTopBar from '@/components/ui/branch/BranchTopBar';
 import OrdersStatCards from '@/components/ui/branch/OrdersStatCards';
 import OrdersTable, { OrdersRow } from '@/components/ui/branch/OrdersTable';
 import OrderStatusDrawer from '@/components/ui/branch/OrderStatusDrawer';
+import {
+    adminApi,
+    getApiErrorMessage,
+    getCurrentCabangId,
+    type AdminOrder,
+    type AdminOrderDetail,
+    type AdminPegawai,
+    type OrderStatusStatistik,
+} from '@/lib/api';
+import type { OrderStatus } from '@/components/ui/branch/StatusBadge';
+import {
+    avatarToneFor,
+    formatEstFinish,
+    formatOrderId,
+    initialsOf,
+    mapOrderStatus,
+    uiStatusToBackend,
+} from '@/components/ui/branch/format';
 
-const FILTERS = ['All', 'Pickup', 'Processing', 'Delivery', 'Completed'];
+const FILTERS: ('All' | OrderStatus)[] = ['All', 'Pickup', 'Processing', 'Delivery', 'Completed'];
+const STATUS_OPTIONS: OrderStatus[] = ['Pickup', 'Processing', 'Delivery', 'Completed'];
 
-// Faded backdrop rows (dimmed behind the drawer scrim).
-const ORDERS: OrdersRow[] = [
-    { id: '1', orderId: '#ORD-9082', customerName: 'Anita Smith', customerPhone: '+62 812 3456', initials: 'AS', avatarTone: 'mint', estFinish: 'Today, 14:00', isOverdue: false, status: 'Delivery' },
-    { id: '2', orderId: '#ORD-9081', customerName: 'Budi Kurniawan', customerPhone: '+62 819 8765', initials: 'BK', avatarTone: 'teal', estFinish: 'Tomorrow, 10:00', isOverdue: false, status: 'Completed' },
-    { id: '3', orderId: '#ORD-9080', customerName: 'Citra Dewi', customerPhone: '+62 856 1122', initials: 'CD', avatarTone: 'gray', estFinish: 'Overdue (2h)', isOverdue: true, status: 'Processing' },
-    { id: '4', orderId: '#ORD-9082', customerName: 'Anita Smith', customerPhone: '+62 812 3456', initials: 'AS', avatarTone: 'mint', estFinish: 'Today, 14:00', isOverdue: false, status: 'Pickup' },
-];
+function toOrdersRow(o: AdminOrder): OrdersRow {
+    const est = formatEstFinish(o.estimasiSelesai);
+    return {
+        id: String(o.id),
+        orderId: formatOrderId(o.id),
+        customerName: o.pelanggan.nama,
+        customerPhone: o.pelanggan.noTelp,
+        initials: initialsOf(o.pelanggan.nama),
+        avatarTone: avatarToneFor(o.pelanggan.id),
+        estFinish: est.label,
+        isOverdue: est.isOverdue,
+        status: mapOrderStatus(o.status),
+    };
+}
 
-const ITEMS = [
-    { service: 'Wash & Fold', weightQty: '5 kg' },
-    { service: 'Wash & Fold', weightQty: '5 kg' },
-    { service: 'Wash & Fold', weightQty: '5 kg' },
-];
+function countForUiStatus(counts: OrderStatusStatistik['counts'], target: OrderStatus): number {
+    return counts.filter((c) => mapOrderStatus(c.status) === target).reduce((acc, c) => acc + c.count, 0);
+}
 
 function OrderDetailInner() {
+    const router = useRouter();
     const params = useParams<{ order_id: string }>();
-    const orderId = params?.order_id ?? 'NL-9082';
+    const pesananId = Number(params?.order_id ?? 0);
+    const cabangId = useMemo(() => getCurrentCabangId(), []);
+
+    const [detail, setDetail] = useState<AdminOrderDetail | null>(null);
+    const [pegawai, setPegawai] = useState<AdminPegawai | null>(null);
+    const [backdropOrders, setBackdropOrders] = useState<AdminOrder[]>([]);
+    const [backdropStats, setBackdropStats] = useState<OrderStatusStatistik | null>(null);
+
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (cabangId == null || !Number.isFinite(pesananId) || pesananId <= 0) {
+            setError('Order tidak valid.');
+            return;
+        }
+        const controller = new AbortController();
+
+        Promise.all([
+            adminApi.getOrderDetail(cabangId, pesananId, controller.signal),
+            adminApi.listOrders(cabangId, { page: 1, limit: 10 }, controller.signal),
+            adminApi.getOrderStatusStatistik(cabangId, controller.signal),
+        ])
+            .then(async ([d, list, stats]) => {
+                setDetail(d);
+                setBackdropOrders(list);
+                setBackdropStats(stats);
+
+                // Look up the pegawai assigned to this order so the drawer can
+                // display + submit their id without the admin retyping it.
+                const allPegawai = await adminApi.listPegawai(cabangId, controller.signal);
+                setPegawai(allPegawai.find((p) => p.id === d.pegawaiId) ?? null);
+            })
+            .catch((e) => {
+                if (!controller.signal.aborted) setError(getApiErrorMessage(e));
+            });
+
+        return () => controller.abort();
+    }, [cabangId, pesananId]);
+
+    async function handleSave(input: { pegawaiId: number; status: OrderStatus }) {
+        if (cabangId == null || !detail) return;
+        setSubmitting(true);
+        setSubmitError(null);
+        try {
+            await adminApi.updateOrderDetail(cabangId, detail.id, {
+                pegawaiId: input.pegawaiId,
+                status: uiStatusToBackend(input.status),
+            });
+            router.push('/branch/orders');
+        } catch (e) {
+            setSubmitError(getApiErrorMessage(e));
+            setSubmitting(false);
+        }
+    }
+
+    const items = (detail?.items ?? []).map((it) => ({
+        service: it.layananNama,
+        weightQty: `${it.kuantitas} ${it.satuan}`,
+    }));
 
     return (
         <>
-            {/* Orders page behind the drawer */}
-            <BranchTopBar title="Orders" branchName="Keputih Branch" />
+            <BranchTopBar title="Orders" branchName={`Branch #${cabangId ?? '-'}`} />
             <div className="flex w-full flex-col gap-8 px-10 pt-10 pb-10">
-                <OrdersStatCards />
+                <OrdersStatCards
+                    total={backdropStats?.total ?? 0}
+                    pickup={countForUiStatus(backdropStats?.counts ?? [], 'Pickup')}
+                    processing={countForUiStatus(backdropStats?.counts ?? [], 'Processing')}
+                    delivery={countForUiStatus(backdropStats?.counts ?? [], 'Delivery')}
+                    completed={countForUiStatus(backdropStats?.counts ?? [], 'Completed')}
+                />
                 <div className="flex items-start gap-5">
                     {FILTERS.map((label, i) => (
                         <span
@@ -49,26 +139,43 @@ function OrderDetailInner() {
                         </span>
                     ))}
                 </div>
-                <OrdersTable rows={ORDERS} />
+                <OrdersTable rows={backdropOrders.map(toOrdersRow)} />
+
+                {error && (
+                    <p role="alert" className="text-[14px] text-[#ba1a1a]">
+                        {error}
+                    </p>
+                )}
             </div>
 
-            {/* Scrim over the main content area (sidebar stays visible) */}
             <Link
                 href="/branch/orders"
                 aria-label="Close order detail"
                 className="fixed inset-y-0 right-0 left-20 z-30 bg-white/60 backdrop-blur-[2px]"
             />
 
-            {/* Right-side status drawer */}
-            <OrderStatusDrawer
-                orderId={orderId}
-                statusLabel="Dicuci"
-                currentStatus="Dicuci (Processing)"
-                estCompletion="20-06-2026  04:30 PM"
-                totalItem={3}
-                items={ITEMS}
-                closeHref="/branch/orders"
-            />
+            {detail && (
+                <OrderStatusDrawer
+                    orderId={formatOrderId(detail.id)}
+                    statusLabel={mapOrderStatus(detail.status)}
+                    currentStatus={mapOrderStatus(detail.status)}
+                    estCompletion={new Date(detail.estimasiSelesai).toLocaleString('id-ID', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    })}
+                    totalItem={detail.items.length}
+                    items={items}
+                    closeHref="/branch/orders"
+                    pegawai={pegawai}
+                    statusOptions={STATUS_OPTIONS}
+                    onSubmit={handleSave}
+                    isSubmitting={submitting}
+                    error={submitError}
+                />
+            )}
         </>
     );
 }

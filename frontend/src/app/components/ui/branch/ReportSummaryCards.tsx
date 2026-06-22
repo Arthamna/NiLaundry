@@ -1,32 +1,51 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Check, TrendingUp } from 'lucide-react';
 
-interface MethodSegment {
+export interface MethodSegment {
     label: string;
-    color: string;
     percent: number;
     count: number;
 }
 
-const SEGMENTS: MethodSegment[] = [
-    { label: 'QRIS', color: '#0f766e', percent: 58, count: 58 },
-    { label: 'BANK', color: '#ffb900', percent: 16, count: 16 },
-    { label: 'GOPAY', color: '#0ea5e9', percent: 18, count: 18 },
-    { label: 'OVO', color: '#a855f7', percent: 8, count: 8 },
-];
+export interface ReportSummaryCardsProps {
+    totalPaid: string;       // formatted IDR
+    successfulCount: number; // count of transactions backing totalPaid
+    average: string;         // formatted IDR
+    segments: MethodSegment[];
+}
 
-// Build the donut's conic-gradient stops from the segment percentages.
-const DONUT_GRADIENT = (() => {
-    let acc = 0;
-    const stops = SEGMENTS.map((s) => {
-        const start = acc;
-        acc += s.percent;
-        return `${s.color} ${start}% ${acc}%`;
-    });
-    return `conic-gradient(${stops.join(', ')})`;
-})();
+const METHOD_COLOR: Record<string, string> = {
+    QRIS: '#0f766e',
+    BANK: '#ffb900',
+    GOPAY: '#0ea5e9',
+    OVO: '#a855f7',
+    CASH: '#16a34a',
+    DANA: '#0ea5e9',
+};
 
-export default function ReportSummaryCards() {
+function colorFor(label: string): string {
+    return METHOD_COLOR[label.toUpperCase()] ?? '#64748b';
+}
+
+export default function ReportSummaryCards({
+    totalPaid,
+    successfulCount,
+    average,
+    segments,
+}: ReportSummaryCardsProps) {
+    const totalCount = useMemo(() => segments.reduce((acc, s) => acc + s.count, 0), [segments]);
+
+    const donutGradient = useMemo(() => {
+        if (segments.length === 0) return 'conic-gradient(#e2e8f0 0% 100%)';
+        let acc = 0;
+        const stops = segments.map((s) => {
+            const start = acc;
+            acc += s.percent;
+            return `${colorFor(s.label)} ${start}% ${acc}%`;
+        });
+        return `conic-gradient(${stops.join(', ')})`;
+    }, [segments]);
+
     return (
         <div className="grid h-[180px] w-full grid-cols-3 gap-x-4">
             {/* Total Paid */}
@@ -40,9 +59,11 @@ export default function ReportSummaryCards() {
                     </span>
                 </div>
                 <p className="pb-1 text-[36px] leading-[44px] font-bold tracking-[-0.72px] text-[#181c1c]">
-                    Rp 12.0M
+                    {totalPaid}
                 </p>
-                <p className="text-[14px] leading-5 text-[#6e7977]">452 successful transactions</p>
+                <p className="text-[14px] leading-5 text-[#6e7977]">
+                    {successfulCount} successful transactions
+                </p>
             </div>
 
             {/* Average per transaction */}
@@ -56,7 +77,7 @@ export default function ReportSummaryCards() {
                     </span>
                 </div>
                 <p className="pb-1 text-[36px] leading-[44px] font-bold tracking-[-0.72px] text-[#181c1c]">
-                    Rp 86.250
+                    {average}
                 </p>
                 <p className="text-[14px] leading-5 text-[#6e7977]">Average per invoice</p>
             </div>
@@ -68,22 +89,25 @@ export default function ReportSummaryCards() {
                 </div>
                 <div className="flex flex-1 items-center gap-3 p-3">
                     <div className="relative size-[101px] shrink-0">
-                        <div className="size-full rounded-full" style={{ background: DONUT_GRADIENT }} />
+                        <div className="size-full rounded-full" style={{ background: donutGradient }} />
                         <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-white">
                             <span className="text-[9px] leading-none text-[#64748b]">Total</span>
-                            <span className="text-[13px] leading-tight font-bold text-[#0f172a]">100</span>
+                            <span className="text-[13px] leading-tight font-bold text-[#0f172a]">{totalCount}</span>
                         </div>
                     </div>
                     <ul className="flex flex-1 flex-col gap-1">
-                        {SEGMENTS.map((s) => (
+                        {segments.length === 0 && (
+                            <li className="text-[11px] leading-4 text-[#90a1b9]">No data</li>
+                        )}
+                        {segments.map((s) => (
                             <li key={s.label} className="flex items-center gap-1.5">
                                 <span
                                     className="size-[7px] shrink-0 rounded-[3px]"
-                                    style={{ backgroundColor: s.color }}
+                                    style={{ backgroundColor: colorFor(s.label) }}
                                 />
                                 <span className="flex-1 text-[11px] leading-4 text-[#45556c]">{s.label}</span>
                                 <span className="text-[11px] leading-4 font-semibold text-[#0f172b]">
-                                    {s.percent}%
+                                    {Math.round(s.percent)}%
                                 </span>
                                 <span className="text-[11px] leading-4 text-[#90a1b9]">· {s.count}</span>
                             </li>

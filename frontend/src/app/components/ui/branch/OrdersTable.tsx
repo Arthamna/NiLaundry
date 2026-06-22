@@ -2,8 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import StatusBadge, { OrderStatus } from '@/components/ui/branch/StatusBadge';
-
-export type AvatarTone = 'mint' | 'teal' | 'gray';
+import { AVATAR_TONES, AvatarTone } from '@/components/ui/branch/avatarTones';
 
 export interface OrdersRow {
     id: string;
@@ -17,33 +16,43 @@ export interface OrdersRow {
     status: OrderStatus;
 }
 
-const AVATAR_TONES: Record<AvatarTone, string> = {
-    mint: 'bg-[#6df5e1] text-[#006f64]',
-    teal: 'bg-[#00776a] text-[#84ffeb]',
-    gray: 'bg-[#e5e9e7] border border-[#bdc9c6] text-[#3e4947]',
-};
+export interface OrdersTableProps {
+    rows: OrdersRow[];
+    page?: number;
+    pageSize?: number;
+    totalEntries?: number;
+    onPageChange?: (page: number) => void;
+}
 
-export default function OrdersTable({ rows }: { rows: OrdersRow[] }) {
+export default function OrdersTable({
+    rows,
+    page = 1,
+    pageSize = 10,
+    totalEntries,
+    onPageChange,
+}: OrdersTableProps) {
+    const knownTotal = totalEntries ?? rows.length;
+    const showingFrom = knownTotal === 0 ? 0 : (page - 1) * pageSize + 1;
+    const showingTo = Math.min(page * pageSize, knownTotal);
+    const totalPages = Math.max(1, Math.ceil(knownTotal / pageSize));
+    const pageButtons = buildPageButtons(page, totalPages);
+
     return (
         <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white p-px shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-            {/* Table */}
             <div className="w-full overflow-auto">
-                {/* Header */}
                 <div className="flex w-full justify-center border-b border-[#bdc9c6] bg-[#f1f4f3]">
-                    <HeaderCell width="w-[256px]" sortable>
-                        Order ID
-                    </HeaderCell>
-                    <HeaderCell width="w-[256px]" sortable>
-                        Customer
-                    </HeaderCell>
-                    <HeaderCell width="w-[200px]" sortable>
-                        Est. Finish
-                    </HeaderCell>
+                    <HeaderCell width="w-[256px]" sortable>Order ID</HeaderCell>
+                    <HeaderCell width="w-[256px]" sortable>Customer</HeaderCell>
+                    <HeaderCell width="w-[200px]" sortable>Est. Finish</HeaderCell>
                     <HeaderCell width="w-[144px]">Status</HeaderCell>
                 </div>
 
-                {/* Body */}
                 <div className="flex w-full flex-col">
+                    {rows.length === 0 && (
+                        <div className="flex w-full justify-center border-b border-[#e0e3e1] py-10 text-[14px] text-[#3e4947]">
+                            Tidak ada pesanan untuk filter ini.
+                        </div>
+                    )}
                     {rows.map((row) => (
                         <Link
                             key={row.id}
@@ -87,30 +96,40 @@ export default function OrdersTable({ rows }: { rows: OrdersRow[] }) {
                 </div>
             </div>
 
-            {/* Pagination */}
             <div className="w-full border-t border-[#bdc9c6] bg-white">
                 <div className="flex items-center justify-between px-4 pt-[9px] pb-2">
-                    <span className="text-[14px] leading-5 text-[#3e4947]">Showing 1 to 10 of 45 entries</span>
+                    <span className="text-[14px] leading-5 text-[#3e4947]">
+                        Showing {showingFrom} to {showingTo} of {knownTotal} entries
+                    </span>
                     <div className="flex items-center justify-center gap-1">
-                        <button type="button" className="flex items-center justify-center rounded-[4px] p-1">
-                            <ChevronLeft size={12} className="text-[#3e4947]" />
-                        </button>
                         <button
                             type="button"
-                            className="rounded-[4px] bg-[#0f766e] px-2 pt-[7.5px] pb-[8.5px] text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#a3faef]"
+                            disabled={page <= 1}
+                            onClick={() => onPageChange?.(page - 1)}
+                            className="flex items-center justify-center rounded-[4px] p-1 disabled:opacity-40"
                         >
-                            1
+                            <ChevronLeft size={12} className="text-[#3e4947]" />
                         </button>
-                        {[2, 3, 4, 5].map((n) => (
+                        {pageButtons.map((n) => (
                             <button
                                 key={n}
                                 type="button"
-                                className="rounded-[4px] px-2 pt-[7.5px] pb-[8.5px] text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#3e4947]"
+                                onClick={() => onPageChange?.(n)}
+                                className={
+                                    n === page
+                                        ? 'rounded-[4px] bg-[#0f766e] px-2 pt-[7.5px] pb-[8.5px] text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#a3faef]'
+                                        : 'rounded-[4px] px-2 pt-[7.5px] pb-[8.5px] text-[12px] leading-4 font-semibold tracking-[0.6px] text-[#3e4947]'
+                                }
                             >
                                 {n}
                             </button>
                         ))}
-                        <button type="button" className="flex items-center justify-center rounded-[4px] p-1">
+                        <button
+                            type="button"
+                            disabled={page >= totalPages}
+                            onClick={() => onPageChange?.(page + 1)}
+                            className="flex items-center justify-center rounded-[4px] p-1 disabled:opacity-40"
+                        >
                             <ChevronRight size={12} className="text-[#3e4947]" />
                         </button>
                     </div>
@@ -118,6 +137,14 @@ export default function OrdersTable({ rows }: { rows: OrdersRow[] }) {
             </div>
         </section>
     );
+}
+
+function buildPageButtons(current: number, total: number): number[] {
+    const out: number[] = [];
+    const start = Math.max(1, Math.min(current - 2, total - 4));
+    const end = Math.min(total, start + 4);
+    for (let i = start; i <= end; i++) out.push(i);
+    return out.length > 0 ? out : [1];
 }
 
 function HeaderCell({
