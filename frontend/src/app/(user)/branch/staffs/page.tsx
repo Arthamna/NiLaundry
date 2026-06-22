@@ -42,12 +42,12 @@ export default function BranchStaffPage() {
                 <section className="flex w-full flex-col overflow-clip rounded-[12px] border border-[#bdc9c6] bg-white">
                     {/* Card header */}
                     <div className="flex h-[76px] items-center justify-between border-b border-[#e0e3e1] px-6">
-                        <h4 className="text-[20px] leading-7 font-semibold text-[#181c1c]">Daftar Staff</h4>
+                        <h4 className="text-[20px] leading-7 font-semibold text-[#181c1c]">Staff List</h4>
                         <div className="flex w-[256px] items-center gap-[13px] rounded-[8px] border border-[#bdc9c6] bg-[#f7faf8] px-[17px] py-[9px]">
                             <Search size={12} className="shrink-0 text-[#6b7280]" />
                             <input
                                 type="text"
-                                placeholder="Cari Staff"
+                                placeholder="Search Staff"
                                 className="w-full bg-transparent text-[14px] text-[#181c1c] outline-none placeholder:text-[#6b7280]"
                             />
                         </div>
@@ -57,10 +57,10 @@ export default function BranchStaffPage() {
                     <div className="w-full overflow-auto">
                         {/* Header row */}
                         <div className="flex w-full border-b border-[#bdc9c6] bg-[#f1f4f3]">
-                            <HeaderCell width="w-[256px]">Nama Staff</HeaderCell>
+                            <HeaderCell width="w-[256px]">Staff Name</HeaderCell>
                             <HeaderCell width="w-[256px]">Email</HeaderCell>
-                            <HeaderCell width="w-[256px]">Nomor Telepon</HeaderCell>
-                            <HeaderCell width="flex-1">Alamat</HeaderCell>
+                            <HeaderCell width="w-[256px]">Phone Number</HeaderCell>
+                            <HeaderCell width="flex-1">Address</HeaderCell>
                         </div>
 
                         {/* Body */}

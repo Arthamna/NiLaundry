@@ -37,7 +37,7 @@ const PER_BINTANG = [
     { label: 'Feb', pct: 70 },
     { label: 'Mar', pct: 55 },
     { label: 'Apr', pct: 85 },
-    { label: 'Mei', pct: 60 },
+    { label: 'May', pct: 60 },
     { label: 'Jun', pct: 95 },
 ];
 
@@ -123,7 +123,7 @@ const REVIEWS: ReviewItem[] = [
 ];
 
 const RATING_CHIPS = [5, 4, 3, 2, 1];
-const SORT_OPTIONS = ['Terbaru', 'Tertinggi', 'Terendah'];
+const SORT_OPTIONS = ['Newest', 'Highest', 'Lowest'];
 
 // Rating pill tint — exact Figma colors (node 347:2662).
 function ratingTone(rating: number): { pill: string; text: string } {
@@ -157,9 +157,9 @@ export default function BranchReviewsPage() {
             <div className="flex w-full flex-col gap-6 px-10 pt-10 pb-10">
                 {/* Page header */}
                 <div className="flex flex-col gap-1">
-                    <span className="text-[14px] leading-5 font-medium text-[#3e4947]">Feedback Pelanggan</span>
+                    <span className="text-[14px] leading-5 font-medium text-[#3e4947]">Customer Feedback</span>
                     <h3 className="text-[36px] leading-[44px] font-bold tracking-[-0.72px] text-[#181c1c]">
-                        Ulasan Pelanggan
+                        Customer Reviews
                     </h3>
                 </div>
 
@@ -169,12 +169,12 @@ export default function BranchReviewsPage() {
                     <div className="flex w-[180px] shrink-0 flex-col items-center justify-center gap-2 rounded-[12px] border border-[#e2e8f0] bg-white px-[40px] py-[28px]">
                         <span className="text-[56px] leading-[56px] font-bold text-[#181c1c]">{SUMMARY.average}</span>
                         <StarRow rating={SUMMARY.average} size={18} />
-                        <span className="text-[13px] leading-[18px] text-[#6e7977]">{SUMMARY.total} ulasan</span>
+                        <span className="text-[13px] leading-[18px] text-[#6e7977]">{SUMMARY.total} reviews</span>
                     </div>
 
                     {/* Distribution */}
                     <div className="flex flex-1 flex-col gap-[10px] rounded-[12px] border border-[#e2e8f0] bg-white px-[28px] py-[24px]">
-                        <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Distribusi Rating</span>
+                        <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Rating Distribution</span>
                         <div className="flex flex-col gap-[10px]">
                             {SUMMARY.distribution.map((row) => (
                                 <div key={row.stars} className="flex items-center gap-3">
@@ -195,7 +195,7 @@ export default function BranchReviewsPage() {
 
                     {/* Per Bintang chart */}
                     <div className="flex w-[220px] shrink-0 flex-col gap-3 rounded-[12px] border border-[#e2e8f0] bg-white px-[24px] py-[20px]">
-                        <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Per Bintang</span>
+                        <span className="text-[14px] leading-5 font-medium text-[#181c1c]">Per Star</span>
                         <div className="flex h-[120px] items-end justify-between gap-2">
                             {PER_BINTANG.map((bar) => (
                                 <div key={bar.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
@@ -215,7 +215,7 @@ export default function BranchReviewsPage() {
                     {/* Panel header */}
                     <div className="flex items-center justify-between border-b border-[#e0e3e1] px-6 py-[18px]">
                         <div className="flex items-center gap-2">
-                            <h3 className="text-[20px] leading-7 font-semibold text-[#181c1c]">Semua Ulasan</h3>
+                            <h3 className="text-[20px] leading-7 font-semibold text-[#181c1c]">All Reviews</h3>
                             <span className="rounded-full bg-[#f1f4f3] px-2 py-0.5 text-[13px] leading-[18px] text-[#3e4947]">
                                 {SUMMARY.total}
                             </span>
@@ -228,7 +228,7 @@ export default function BranchReviewsPage() {
                                 />
                                 <input
                                     type="text"
-                                    placeholder="Cari ulasan..."
+                                    placeholder="Search reviews..."
                                     className="w-full rounded-[8px] border border-[#e0e3e1] bg-white py-2 pr-3 pl-9 text-[13px] text-[#181c1c] outline-none placeholder:text-[#6e7977]"
                                 />
                             </div>
@@ -239,7 +239,7 @@ export default function BranchReviewsPage() {
                                     type="button"
                                     className="rounded-[6px] bg-white px-2 py-1 text-[12px] leading-4 font-medium text-[#181c1c] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.08)]"
                                 >
-                                    Semua
+                                    All
                                 </button>
                                 {RATING_CHIPS.map((n) => (
                                     <button
@@ -332,7 +332,7 @@ export default function BranchReviewsPage() {
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between border-t border-[#bdc9c6] px-6 py-3">
-                        <span className="text-[13px] leading-5 text-[#3e4947]">Menampilkan 1–6 dari 12 ulasan</span>
+                        <span className="text-[13px] leading-5 text-[#3e4947]">Showing 1–6 of 12 reviews</span>
                         <div className="flex items-center gap-1">
                             <button type="button" className="flex items-center justify-center rounded-[4px] p-1 opacity-30" disabled>
                                 <ChevronLeft size={14} className="text-[#3e4947]" />
