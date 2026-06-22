@@ -1,6 +1,10 @@
 'use client';
 
+<<<<<<< Updated upstream
 import { useEffect, useMemo, useState } from 'react';
+=======
+import { useEffect, useRef, useState } from 'react';
+>>>>>>> Stashed changes
 import { useParams, useRouter } from 'next/navigation';
 import DashboardHeader from '@/components/ui/customer/DashboardHeader';
 import BackButton from '@/components/ui/customer/BackButton';
@@ -11,11 +15,13 @@ import PaymentVoucherSection, {
 } from '@/components/ui/customer/PaymentVoucherSection';
 import OrderSummaryCard, { type OrderServiceLine } from '@/components/ui/customer/OrderSummaryCard';
 import {
+    API_BASE_URL,
     pesananApi,
     voucherApi,
     pembayaranApi,
     getApiErrorMessage,
     getCurrentPelangganId,
+    getToken,
     type PesananDetail,
     type Voucher,
 } from '@/lib/api';
@@ -60,10 +66,20 @@ export default function PaymentPage() {
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
+    // Refs read by the cleanup effect — refs (not state) so unmount fires the
+    // current values without re-running the effect each time they change.
+    const paidRef = useRef(false);
+    const cancelledRef = useRef(false);
+    const pesananIdRef = useRef<number | null>(null);
+    const pelangganIdRef = useRef<number | null>(null);
+
     useEffect(() => {
         const controller = new AbortController();
         const pelangganId = getCurrentPelangganId();
         const pesananId = Number(orderId);
+        pelangganIdRef.current = pelangganId;
+        pesananIdRef.current = Number.isFinite(pesananId) ? pesananId : null;
+
         const request =
             pelangganId == null || !Number.isFinite(pesananId)
                 ? Promise.reject(new Error('Sesi atau pesanan tidak valid.'))
@@ -99,8 +115,59 @@ export default function PaymentPage() {
         return () => controller.abort();
     }, [orderId]);
 
+<<<<<<< Updated upstream
     useEffect(() => {
         setVoucherParam(new URLSearchParams(window.location.search).get('voucher'));
+=======
+    // Auto-cancel hook. The order was created with status='Menunggu'; if the
+    // customer leaves this page without confirming payment we flip it to
+    // 'cancelled'. Two layers:
+    //   - `beforeunload` / `pagehide` for tab close, refresh, external link:
+    //     fetch with keepalive lets the request finish past unload.
+    //   - cleanup function for in-app navigation (back button, route push).
+    // The backend `cancelIfPending` only flips status when it's still
+    // 'Menunggu', so already-paid or repeat calls are no-ops.
+    useEffect(() => {
+        function cancelViaKeepalive() {
+            const pelangganId = pelangganIdRef.current;
+            const pesananId = pesananIdRef.current;
+            if (pelangganId == null || pesananId == null) return;
+            if (paidRef.current || cancelledRef.current) return;
+            cancelledRef.current = true;
+            const token = getToken();
+            void fetch(
+                `${API_BASE_URL}/pelanggan/${pelangganId}/pesanan/${pesananId}/cancel`,
+                {
+                    method: 'POST',
+                    keepalive: true,
+                    headers: token
+                        ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+                        : { 'Content-Type': 'application/json' },
+                },
+            ).catch(() => {});
+        }
+
+        window.addEventListener('beforeunload', cancelViaKeepalive);
+        window.addEventListener('pagehide', cancelViaKeepalive);
+
+        return () => {
+            window.removeEventListener('beforeunload', cancelViaKeepalive);
+            window.removeEventListener('pagehide', cancelViaKeepalive);
+            // In-app navigation: fire-and-forget; idempotent on the backend.
+            const pelangganId = pelangganIdRef.current;
+            const pesananId = pesananIdRef.current;
+            if (
+                pelangganId == null ||
+                pesananId == null ||
+                paidRef.current ||
+                cancelledRef.current
+            ) {
+                return;
+            }
+            cancelledRef.current = true;
+            pesananApi.cancelPesanan(pelangganId, pesananId).catch(() => {});
+        };
+>>>>>>> Stashed changes
     }, []);
 
     const total = detail ? idr(detail.totalHarga) : '';
@@ -156,6 +223,9 @@ export default function PaymentPage() {
                 metode,
                 voucherId,
             });
+            // Mark as paid BEFORE navigating so the cleanup effect that fires
+            // on unmount doesn't fire the auto-cancel request.
+            paidRef.current = true;
             router.push('/customer/orders');
         } catch (e) {
             setError(getApiErrorMessage(e));

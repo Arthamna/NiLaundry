@@ -18,6 +18,7 @@ type Handlers struct {
 	Voucher    handlers.VoucherHandler
 	Notifikasi handlers.NotifikasiHandler
 	Pembayaran handlers.PembayaranHandler
+	Kurir      handlers.KurirHandler
 	Branch     handlers.BranchHandler
 }
 
@@ -54,6 +55,11 @@ func SetupRoutes(
 			owned.POST("/pesanan", h.Pesanan.Create)
 			owned.GET("/pesanan/subtotal", h.Pesanan.Subtotal)
 			owned.GET("/pesanan/:pesananId", h.Pesanan.GetDetail)
+			owned.POST("/pesanan/:pesananId/cancel", h.Pesanan.Cancel)
+
+			// Kurir picker for customer add-new-order (only relevant when
+			// pickup/delivery is selected; the endpoint itself is unfiltered).
+			owned.GET("/kurir", h.Kurir.List)
 
 			owned.GET("/ulasan", h.Ulasan.ListMine)
 			owned.GET("/ulasan/:pesananId", h.Ulasan.GetByPesanan)

@@ -20,14 +20,21 @@ type PesananService interface {
 	Subtotal(ctx context.Context, items []dtos.ItemPesananInput) (*dtos.SubtotalResponse, error)
 	Create(ctx context.Context, pelangganID int, req dtos.CreatePesananRequest) (*dtos.PesananResponse, error)
 	Katalog(ctx context.Context) ([]dtos.KatalogCabangResponse, error)
+	// Cancel flips a pending order to 'cancelled'. Returns true when the
+	// status was actually flipped, false when the order was already paid
+	// or already cancelled (idempotent). Used by the payment page to
+	// auto-cancel when the customer leaves before confirming payment.
+	Cancel(ctx context.Context, pelangganID, pesananID int) (bool, error)
 }
 
 type pesananService struct {
-	pesananRepo repositories.PesananRepository
-	ulasanRepo  repositories.UlasanRepository
-	tarifRepo   repositories.TarifRepository
-	pegawaiRepo repositories.PegawaiRepository
+	pesananRepo   repositories.PesananRepository
+	ulasanRepo    repositories.UlasanRepository
+	tarifRepo     repositories.TarifRepository
+	pegawaiRepo   repositories.PegawaiRepository
 	voucherRepo repositories.VoucherRepository
+	kurirRepo     repositories.KurirRepository
+	pelangganRepo repositories.PelangganRepository
 }
 
 func NewPesananService(
@@ -36,13 +43,17 @@ func NewPesananService(
 	tarifRepo repositories.TarifRepository,
 	pegawaiRepo repositories.PegawaiRepository,
 	voucherRepo repositories.VoucherRepository,
+	kurirRepo repositories.KurirRepository,
+	pelangganRepo repositories.PelangganRepository,
 ) PesananService {
 	return &pesananService{
-		pesananRepo: pesananRepo,
-		ulasanRepo:  ulasanRepo,
-		tarifRepo:   tarifRepo,
-		pegawaiRepo: pegawaiRepo,
+		pesananRepo:   pesananRepo,
+		ulasanRepo:    ulasanRepo,
+		tarifRepo:     tarifRepo,
+		pegawaiRepo:   pegawaiRepo,
 		voucherRepo: voucherRepo,
+		kurirRepo:     kurirRepo,
+		pelangganRepo: pelangganRepo,
 	}
 }
 
@@ -262,6 +273,36 @@ func (s *pesananService) Create(ctx context.Context, pelangganID int, req dtos.C
 		JenisAntar:             req.JenisAntar,
 	}
 
+	// Auto-assign a kurir when the order involves pickup or delivery —
+	// the kurir is chosen by the system, not by the customer. Picked once
+	// even when both legs apply (same courier handles both directions).
+	needsKurir := req.JenisAmbil == constants.JenisAmbilPickup ||
+		req.JenisAntar == constants.JenisAntarDelivery
+	var assignedKurir *repositories.KurirRow
+	if needsKurir {
+		k, err := s.kurirRepo.PickRandom(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if k == nil {
+			return nil, common.NewAppError(http.StatusBadRequest, "no kurir available")
+		}
+		assignedKurir = k
+	}
+
+	// Pengiriman.alamat_pengiriman is NOT NULL — pull the customer's address
+	// once outside the tx so we don't hit the DB inside it for read-only data.
+	var alamatPengiriman string
+	if needsKurir {
+		p, err := s.pelangganRepo.FindByID(ctx, pelangganID)
+		if err != nil {
+			return nil, err
+		}
+		if p != nil {
+			alamatPengiriman = p.AlamatPelanggan
+		}
+	}
+
 	err = s.pesananRepo.CreateOrderTx(ctx, func(tx *gorm.DB) error {
 		if err := tx.Create(pesanan).Error; err != nil {
 			return err
@@ -282,6 +323,39 @@ func (s *pesananService) Create(ctx context.Context, pelangganID int, req dtos.C
 		if err := tx.Create(pembayaran).Error; err != nil {
 			return err
 		}
+
+		if assignedKurir != nil {
+			// pengiriman.id_pengiriman is plain INT (no IDENTITY in schema),
+			// so we allocate the next id manually inside the tx.
+			legs := make([]string, 0, 2)
+			if req.JenisAmbil == constants.JenisAmbilPickup {
+				legs = append(legs, "pickup")
+			}
+			if req.JenisAntar == constants.JenisAntarDelivery {
+				legs = append(legs, "delivery")
+			}
+			for _, jenis := range legs {
+				var nextID int
+				if err := tx.Raw(
+					`SELECT COALESCE(MAX(id_pengiriman), 0) + 1 FROM pengiriman`,
+				).Scan(&nextID).Error; err != nil {
+					return err
+				}
+				if err := tx.Create(&models.Pengiriman{
+					IDPengiriman:     nextID,
+					WaktuPengiriman:  time.Now(),
+					JenisPengiriman:  jenis,
+					AlamatPengiriman: alamatPengiriman,
+					StatusPengiriman: "pending",
+					OngkirPengiriman: 0,
+					BuktiPengiriman:  "",
+					PesananIDPesanan: pesanan.IDPesanan,
+					KurirIDKurir:     assignedKurir.IDKurir,
+				}).Error; err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -289,4 +363,17 @@ func (s *pesananService) Create(ctx context.Context, pelangganID int, req dtos.C
 	}
 	res := dtos.ToPesananResponse(pesanan)
 	return &res, nil
+}
+
+func (s *pesananService) Cancel(ctx context.Context, pelangganID, pesananID int) (bool, error) {
+	// First confirm the order belongs to this customer — gives a clean 404
+	// instead of a silent no-op when the URL is wrong.
+	p, err := s.pesananRepo.FindOwned(ctx, pelangganID, pesananID)
+	if err != nil {
+		return false, err
+	}
+	if p == nil {
+		return false, common.NewAppError(http.StatusNotFound, "pesanan not found")
+	}
+	return s.pesananRepo.CancelIfPending(ctx, pelangganID, pesananID)
 }

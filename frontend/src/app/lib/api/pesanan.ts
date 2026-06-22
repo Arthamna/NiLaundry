@@ -71,3 +71,20 @@ export async function createPesanan(
         body: input,
     });
 }
+
+/**
+ * POST /pelanggan/{id}/pesanan/{id_pesanan}/cancel — flip a still-pending
+ * order to 'cancelled'. Called by the payment page when the customer leaves
+ * before confirming. Idempotent: already-paid or already-cancelled orders
+ * return `{ cancelled: false }` and 200.
+ */
+export async function cancelPesanan(
+    pelangganId: number,
+    pesananId: number,
+    signal?: AbortSignal,
+): Promise<{ cancelled: boolean }> {
+    return apiFetch<{ cancelled: boolean }>(
+        `/pelanggan/${pelangganId}/pesanan/${pesananId}/cancel`,
+        { method: 'POST', signal },
+    );
+}

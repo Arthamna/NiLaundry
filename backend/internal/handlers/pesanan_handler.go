@@ -16,6 +16,7 @@ type PesananHandler interface {
 	Subtotal(c *gin.Context)
 	Create(c *gin.Context)
 	Katalog(c *gin.Context)
+	Cancel(c *gin.Context)
 }
 
 type pesananHandler struct {
@@ -123,4 +124,27 @@ func (h *pesananHandler) Create(c *gin.Context) {
 		return
 	}
 	common.OK(c, http.StatusCreated, resp)
+}
+
+// Cancel: POST /pelanggan/:id/pesanan/:pesananId/cancel. Idempotent — returns
+// 200 with `{ cancelled: bool }` so the payment-page hook can fire-and-forget
+// on navigation away without worrying about duplicate calls.
+func (h *pesananHandler) Cancel(c *gin.Context) {
+	id, ok := parsePathInt(c, "id")
+	if !ok {
+		return
+	}
+	if !requireOwnership(c, id) {
+		return
+	}
+	pesananID, ok := parsePathInt(c, "pesananId")
+	if !ok {
+		return
+	}
+	cancelled, err := h.svc.Cancel(c.Request.Context(), id, pesananID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	common.OK(c, http.StatusOK, gin.H{"cancelled": cancelled})
 }

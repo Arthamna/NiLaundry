@@ -112,6 +112,9 @@ export type StatusPesanan =
     | 'selesai'
     | 'unpaid'
     | 'paid'
+    // Set when the customer leaves the payment page without confirming.
+    // See POST /pelanggan/{id}/pesanan/{id_pesanan}/cancel.
+    | 'cancelled'
     | string;
 
 /** How the laundry is sent in (jenis_ambil) and returned (jenis_antar). */
@@ -190,6 +193,22 @@ export interface Ulasan {
 export interface CreateUlasanInput {
     rating: number;
     komentar: string;
+}
+
+// --- kurir -------------------------------------------------------------------
+// db.sql: kurir + tipe_kendaraan (joined via kurir.tipe_kendaraan_id_kendaraan).
+// Backend query (GET /pelanggan/{id}/kurir):
+//   SELECT k.id_kurir, k.nama_kurir, k.no_plat_kurir, tk.jenis_kendaraan
+//   FROM kurir k
+//   JOIN tipe_kendaraan tk ON tk.id_kendaraan = k.tipe_kendaraan_id_kendaraan
+//   ORDER BY k.id_kurir ASC
+//   LIMIT :limit OFFSET :offset;
+// Shown on the customer add-new-order page when pickup or delivery is chosen.
+export interface Kurir {
+    id: number; // id_kurir
+    nama: string; // nama_kurir
+    noPlat: string; // no_plat_kurir
+    jenisKendaraan: string; // tipe_kendaraan.jenis_kendaraan
 }
 
 // --- notifikasi --------------------------------------------------------------

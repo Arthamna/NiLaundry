@@ -39,16 +39,18 @@ func main() {
 	pegawaiRepo := repositories.NewPegawaiRepository(db)
 	tarifRepo := repositories.NewTarifRepository(db)
 	branchRepo := repositories.NewBranchRepository(db)
+	kurirRepo := repositories.NewKurirRepository(db)
 
 	// services
 	authSvc := services.NewAuthService(pelangganRepo, penggunaRepo, jwtService)
 	pelangganSvc := services.NewPelangganService(pelangganRepo)
-	pesananSvc := services.NewPesananService(pesananRepo, ulasanRepo, tarifRepo, pegawaiRepo, voucherRepo)
+	pesananSvc := services.NewPesananService(pesananRepo, ulasanRepo, tarifRepo, pegawaiRepo, voucherRepo, kurirRepo, pelangganRepo, )
 	ulasanSvc := services.NewUlasanService(ulasanRepo, pesananRepo)
 	voucherSvc := services.NewVoucherService(voucherRepo)
 	notifSvc := services.NewNotifikasiService(notifRepo)
 	pembayaranSvc := services.NewPembayaranService(pembayaranRepo, pesananRepo, voucherRepo)
 	branchSvc := services.NewBranchService(branchRepo)
+	kurirSvc := services.NewKurirService(kurirRepo)
 
 	// handlers
 	h := routes.Handlers{
@@ -59,6 +61,7 @@ func main() {
 		Voucher:    handlers.NewVoucherHandler(voucherSvc),
 		Notifikasi: handlers.NewNotifikasiHandler(notifSvc),
 		Pembayaran: handlers.NewPembayaranHandler(pembayaranSvc),
+		Kurir:      handlers.NewKurirHandler(kurirSvc),
 		Branch:     handlers.NewBranchHandler(branchSvc),
 	}
 

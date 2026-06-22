@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { Client } from 'pg';
 import 'dotenv/config';
-const sql = fs.readFileSync('./nilaundry_seed (3).sql', 'utf8');
+const sql = fs.readFileSync('./seed_2.sql', 'utf8');
 
 // console.log('DATABASE_URL =', process.env.DATABASE_URL);
 

@@ -34,6 +34,10 @@ type PesananRepository interface {
 	ServiceSummaryByPesanan(ctx context.Context, pesananIDs []int) (map[int]string, error)
 	CreateOrderTx(ctx context.Context, fn func(tx *gorm.DB) error) error
 	UpdateVoucherAndTotal(ctx context.Context, tx *gorm.DB, pesananID int, voucherID *int, total float64) error
+	// CancelIfPending flips an order to 'cancelled' iff its payment row is
+	// still 'pending'. Returns (cancelled, error). Idempotent — already-paid
+	// or already-cancelled orders are no-ops.
+	CancelIfPending(ctx context.Context, pelangganID, pesananID int) (bool, error)
 	DB() *gorm.DB
 }
 
@@ -145,6 +149,51 @@ func (r *pesananRepo) ServiceSummaryByPesanan(ctx context.Context, pesananIDs []
 
 func (r *pesananRepo) CreateOrderTx(ctx context.Context, fn func(tx *gorm.DB) error) error {
 	return r.db.WithContext(ctx).Transaction(fn)
+}
+
+// CancelIfPending flips an order to 'cancelled' iff its payment has not yet
+// been confirmed. Gating on payment (not on pesanan status) is correct
+// because Create sets pesanan.status_pesanan to the first scenario step
+// ('pickup' or 'processing') — not 'Menunggu' — so checking the order
+// status would never match here.
+//
+// The two rows are flipped together inside a single tx:
+//   - pembayaran.status_pembayaran: 'pending' -> 'cancelled' (gate)
+//   - pesanan.status_pesanan: -> 'cancelled' (only if pembayaran flipped)
+//
+// Returns true when this call performed the cancel; false when the payment
+// was already confirmed ('Lunas'), already cancelled, or no payment row was
+// found for the given (pelanggan, pesanan) pair. Idempotent on repeat calls.
+func (r *pesananRepo) CancelIfPending(ctx context.Context, pelangganID, pesananID int) (bool, error) {
+	var cancelled bool
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Single statement joining pembayaran <- pesanan so the customer
+		// owns the order AND the payment is still 'pending'.
+		res := tx.Exec(`
+			UPDATE pembayaran AS b
+			   SET status_pembayaran = 'cancelled'
+			  FROM pesanan AS p
+			 WHERE b.pesanan_id_pesanan = p.id_pesanan
+			   AND p.id_pesanan = ?
+			   AND p.pelanggan_id_pelanggan = ?
+			   AND b.status_pembayaran = 'pending'`, pesananID, pelangganID)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil
+		}
+		cancelled = true
+		return tx.Exec(`
+			UPDATE pesanan
+			   SET status_pesanan = 'cancelled'
+			 WHERE id_pesanan = ?
+			   AND pelanggan_id_pelanggan = ?`, pesananID, pelangganID).Error
+	})
+	if err != nil {
+		return false, err
+	}
+	return cancelled, nil
 }
 
 func (r *pesananRepo) UpdateVoucherAndTotal(ctx context.Context, tx *gorm.DB, pesananID int, voucherID *int, total float64) error {
