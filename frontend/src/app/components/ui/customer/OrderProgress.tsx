@@ -46,9 +46,9 @@ export default function OrderProgress({ orderId, estimatedTime, statusLabel, ste
         <div className="overflow-hidden rounded-[12px] border border-[#bdc9c6] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
             <div className="flex items-center justify-between border-b border-[#bdc9c6] px-6 pt-6 pb-[25px]">
                 <div>
-                    <h3 className="text-[21px] leading-7 font-semibold text-[#181c1c]">Current Order Progress</h3>
+                    <h3 className="text-[21px] leading-7 font-semibold text-[#181c1c]">Latest Order Progress</h3>
                     <p className="text-[15px] leading-5 text-[#6e7977]">
-                        Order #{orderId} • Estimated: {estimatedTime}
+                        Order {orderId} • Estimated: {estimatedTime}
                     </p>
                 </div>
                 <span className="whitespace-nowrap rounded-full bg-[#6df5e1] px-4 py-1 text-[13px] leading-4 font-semibold tracking-[0.6px] text-[#006f64]">
